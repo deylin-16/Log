@@ -3,12 +3,12 @@
   "name": "mini card editor",
   "icons": [
     {
-      "src": "icon-192x192.png",
+      "src": "https://ik.imagekit.io/pm10ywrf6f/dynamic_Bot_by_deylin/1769024986923_8TxykT-8T.jpeg",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icon-512x512.png",
+      "src": "https://ik.imagekit.io/pm10ywrf6f/dynamic_Bot_by_deylin/1769024991475_JOqvYx4JtC.jpeg",
       "sizes": "512x512",
       "type": "image/png"
     }
