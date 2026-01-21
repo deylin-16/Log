@@ -18,8 +18,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#121212] text-white flex flex-col items-center p-4 font-sans">
-// Cambia la primera etiqueta div por esta:
-<div className="min-h-screen w-full bg-[#121212] flex flex-col items-center justify-start p-6 overflow-x-hidden">
 
       <header className="mb-8 text-center">
         <h1 className="text-2xl font-bold tracking-widest text-orange-500">DEYLIN STUDIO PRO</h1>
