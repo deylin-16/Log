@@ -1,5 +1,4 @@
-// constants/shapes.js
-import React from 'react'; // Necesario en la mayoría de entornos React
+import React from 'react';
 
 export const SHAPES = {
   square: () => (
