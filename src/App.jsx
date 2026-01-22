@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from "react-moveable";
 import { 
   Type, Image as ImageIcon, X, Trash2, RotateCcw, Palette, Layers, Wand2, Sparkles,
-  Undo2, Redo2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
-  Square, FlipHorizontal, FlipVertical
+  Undo2, Redo2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Droplet,
+  Square, Circle, Star, FlipHorizontal, FlipVertical
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import debounce from 'lodash-es/debounce';
@@ -68,23 +68,24 @@ export default function TitanStudioCanvas() {
 
   const undo = () => {
     if (historyIndex > 0) {
-      const prev = history[historyIndex - 1];
       setHistoryIndex(historyIndex - 1);
-      setElements(prev);
+      setElements(history[historyIndex - 1]);
     }
   };
 
   const redo = () => {
     if (historyIndex < history.length - 1) {
-      const next = history[historyIndex + 1];
       setHistoryIndex(historyIndex + 1);
-      setElements(next);
+      setElements(history[historyIndex + 1]);
     }
   };
 
   const selectElement = (id) => {
-    if (selectedId === id) return;
     setSelectedId(id);
+    setElements(prev => {
+      const maxZ = Math.max(...prev.map(el => el.zIndex || 0), 0);
+      return prev.map(el => el.id === id ? { ...el, zIndex: maxZ + 1 } : el);
+    });
   };
 
   const addElement = (type, content = '', extra = {}) => {
@@ -92,7 +93,7 @@ export default function TitanStudioCanvas() {
     const newEl = {
       id: Date.now().toString(),
       type,
-      content: content || (type === 'text' ? 'Toca para editar' : type === 'emoji' ? '😊' : ''),
+      content: content || (type === 'text' ? 'Escribe aquí...' : type === 'emoji' ? '😊' : ''),
       transform: 'translate(50px, 100px) rotate(0deg) scale(1)',
       width: type === 'image' || type === 'shape' ? 180 : 'auto',
       height: type === 'shape' ? 180 : 'auto',
@@ -102,7 +103,7 @@ export default function TitanStudioCanvas() {
       bold: false,
       italic: false,
       underline: false,
-      align: 'center',
+      align: 'left',
       opacity: 1,
       shadow: 'none',
       flipX: false,
@@ -119,13 +120,11 @@ export default function TitanStudioCanvas() {
     setActiveSheet(null);
   };
 
-  const updateEl = (id, props) => {
-    setElements(prev => prev.map(el => el.id === id ? { ...el, ...props } : el));
-  };
-
-  const updateHistory = debounce((newElements) => {
+  const updateEl = debounce((id, props) => {
+    const newElements = elements.map(el => el.id === id ? { ...el, ...props } : el);
+    setElements(newElements);
     pushToHistory(newElements);
-  }, 500);
+  }, 100);
 
   const deleteEl = (id) => {
     const newElements = elements.filter(el => el.id !== id);
@@ -147,6 +146,7 @@ export default function TitanStudioCanvas() {
 
   return (
     <div className="h-screen w-full bg-[#050505] text-white flex flex-col overflow-hidden font-sans select-none">
+
       <header className="p-4 flex justify-between items-center bg-black border-b border-white/5 z-[100]">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
@@ -155,8 +155,8 @@ export default function TitanStudioCanvas() {
           <h1 className="font-black text-base uppercase italic tracking-tighter">Titan Studio</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={undo} disabled={historyIndex <= 0} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform disabled:opacity-30"><Undo2 size={16} /></button>
-          <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform disabled:opacity-30"><Redo2 size={16} /></button>
+          <button onClick={undo} disabled={historyIndex <= 0} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform disabled:opacity-50"><Undo2 size={16} /></button>
+          <button onClick={redo} disabled={historyIndex < history.length - 1} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform disabled:opacity-50"><Redo2 size={16} /></button>
           <button onClick={() => { setElements([]); setHistory([]); setHistoryIndex(-1); }} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform"><RotateCcw size={16} /></button>
           <button onClick={async () => {
             setSelectedId(null);
@@ -171,7 +171,6 @@ export default function TitanStudioCanvas() {
       <main className="flex-1 relative flex items-center justify-center p-4 bg-[#0a0a0a] overflow-hidden">
         <div 
           ref={canvasRef}
-          id="titan-canvas"
           onClick={() => setSelectedId(null)}
           className={`relative w-full max-w-[360px] aspect-[3/4] shadow-2xl transition-all duration-500 overflow-hidden ${PAPERS[style]} ${BORDERS[border]}`}
           style={{ backgroundColor: style === 'custom' ? backgroundColor : undefined }}
@@ -181,7 +180,7 @@ export default function TitanStudioCanvas() {
               key={el.id}
               id={`el-${el.id}`}
               onClick={(e) => { e.stopPropagation(); selectElement(el.id); }}
-              className="absolute inline-block cursor-move"
+              className={`absolute inline-block pointer-events-auto`}
               style={{ 
                 transform: `${el.transform} ${el.flipX ? 'scaleX(-1)' : ''} ${el.flipY ? 'scaleY(-1)' : ''}`, 
                 zIndex: el.zIndex,
@@ -194,10 +193,13 @@ export default function TitanStudioCanvas() {
                 <div 
                   contentEditable 
                   suppressContentEditableWarning
+                  onFocus={(e) => { 
+                    if (e.target.innerText === 'Escribe aquí...') e.target.innerText = ''; 
+                  }}
                   onBlur={(e) => {
-                    const content = e.target.innerText.trim() || 'Toca para editar';
-                    updateEl(el.id, { content });
-                    updateHistory([...elements]);
+                    const val = e.target.innerText.trim();
+                    if (val === '') e.target.innerText = 'Escribe aquí...';
+                    updateEl(el.id, { content: e.target.innerText });
                   }}
                   style={{ 
                     fontFamily: el.font, 
@@ -208,16 +210,20 @@ export default function TitanStudioCanvas() {
                     fontStyle: el.italic ? 'italic' : 'normal',
                     textDecoration: el.underline ? 'underline' : 'none',
                     textAlign: el.align,
-                    whiteSpace: 'pre-wrap',
+                    whiteSpace: 'normal',
                     wordWrap: 'break-word',
-                    minWidth: '50px',
-                    padding: '8px'
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
+                    padding: '4px 8px',
+                    minWidth: '100px',
+                    minHeight: '1em'
                   }}
+                  className="inline-block text-center"
                 >
                   {el.content}
                 </div>
               ) : el.type === 'emoji' ? (
-                <div style={{ fontSize: el.size }} className="p-2 select-none leading-none drop-shadow-md">{el.content}</div>
+                <div style={{ fontSize: el.size }} className="p-2 select-none leading-none drop-shadow-md text-center">{el.content}</div>
               ) : el.type === 'shape' ? (
                 <svg width={el.width} height={el.height} viewBox="0 0 100 100" style={{ fill: el.fill }}>
                   {SHAPES[el.content]({})}
@@ -236,37 +242,30 @@ export default function TitanStudioCanvas() {
               rotatable={true}
               pinchable={["scalable", "rotatable"]}
               keepRatio={selectedEl.type !== 'text'}
-              renderDirections={["nw", "ne", "sw", "se"]}
               onDrag={({ target, transform }) => {
                 target.style.transform = transform;
+                updateEl(selectedId, { transform });
               }}
-              onDragEnd={({ target }) => {
-                updateEl(selectedId, { transform: target.style.transform });
-                updateHistory([...elements]);
+              onScale={({ target, transform, drag }) => {
+                target.style.transform = transform;
+                if (selectedEl.type === 'image') updateEl(selectedId, { width: drag.beforeTranslate[0] });
+                if (selectedEl.type === 'shape') updateEl(selectedId, { width: drag.beforeTranslate[0], height: drag.beforeTranslate[1] });
+                updateEl(selectedId, { transform });
               }}
-              onScale={({ target, drag }) => {
-                target.style.transform = drag.transform;
-                if (selectedEl.type === 'image') updateEl(selectedId, { width: drag.beforeTranslate[0], transform: drag.transform });
-                if (selectedEl.type === 'shape') updateEl(selectedId, { width: drag.beforeTranslate[0], height: drag.beforeTranslate[1], transform: drag.transform });
-              }}
-              onScaleEnd={() => updateHistory([...elements])}
               onRotate={({ target, transform }) => {
                 target.style.transform = transform;
+                updateEl(selectedId, { transform });
               }}
-              onRotateEnd={({ target }) => {
-                updateEl(selectedId, { transform: target.style.transform });
-                updateHistory([...elements]);
-              }}
+              renderDirections={["nw", "ne", "sw", "se"]}
+              origin={false}
               lineColor="#f97316"
               controlColor="#ffffff"
-              origin={false}
-              padding={{left: 0, top: 0, right: 0, bottom: 0}}
             />
           )}
         </div>
 
         {selectedId && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[110]">
+          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[110]">
             <button onClick={() => deleteEl(selectedId)} className="p-3 bg-red-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
               <Trash2 size={20}/>
             </button>
@@ -276,7 +275,7 @@ export default function TitanStudioCanvas() {
             <button onClick={() => updateEl(selectedId, { flipY: !selectedEl.flipY })} className="p-3 bg-blue-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
               <FlipVertical size={20}/>
             </button>
-          </div>
+          </motion.div>
         )}
       </main>
 
@@ -293,11 +292,33 @@ export default function TitanStudioCanvas() {
                 <button onClick={() => updateEl(selectedId, { align: 'right' })} className={`p-2 ${selectedEl.align === 'right' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignRight size={16}/></button>
               </>
             )}
-            <input type="color" value={selectedEl.color || selectedEl.fill || '#ffffff'} onChange={(e) => updateEl(selectedId, selectedEl.type === 'shape' ? { fill: e.target.value } : { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer scale-125" />
+            <input type="color" value={selectedEl.color || selectedEl.fill} onChange={(e) => updateEl(selectedId, selectedEl.type === 'shape' ? { fill: e.target.value } : { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer scale-125" />
             <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none" style={{ display: selectedEl.type === 'text' ? 'block' : 'none' }}>
               {FONTS.map(f => <option key={f.id} value={f.family} className="bg-black text-white">{f.name}</option>)}
             </select>
             <input type="range" min="0.1" max="1" step="0.01" value={selectedEl.opacity} onChange={(e) => updateEl(selectedId, { opacity: parseFloat(e.target.value) })} className="w-24" />
+            <select onChange={(e) => updateEl(selectedId, { shadow: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+              <option value="none">Sin Sombra</option>
+              <option value="0 4px 6px rgba(0,0,0,0.1)">Suave</option>
+              <option value="0 10px 15px rgba(0,0,0,0.2)">Media</option>
+              <option value="0 20px 25px rgba(0,0,0,0.3)">Fuerte</option>
+            </select>
+            {(selectedEl.type === 'image' || selectedEl.type === 'shape') && (
+              <select value={selectedEl.mask} onChange={(e) => updateEl(selectedId, { mask: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+                <option value="none">Sin Máscara</option>
+                <option value="circle">Círculo</option>
+                <option value="star">Estrella</option>
+              </select>
+            )}
+            {selectedEl.type === 'image' && (
+              <select onChange={(e) => updateEl(selectedId, { filter: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+                <option value="none">Sin Filtro</option>
+                <option value="grayscale(100%)">Blanco y Negro</option>
+                <option value="sepia(100%)">Sepia</option>
+                <option value="brightness(150%)">Brillante</option>
+                <option value="contrast(200%)">Contraste Alto</option>
+              </select>
+            )}
           </div>
         )}
 
@@ -327,6 +348,7 @@ export default function TitanStudioCanvas() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveSheet(null)} className="fixed inset-0 bg-black/80 z-[120] backdrop-blur-sm"/>
             <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed bottom-0 left-0 w-full bg-[#0a0a0a] rounded-t-[40px] p-8 z-[130] border-t border-white/10 max-h-[70vh] overflow-y-auto shadow-2xl">
               <div className="w-10 h-1.5 bg-white/20 rounded-full mx-auto mb-8"/>
+
               {activeSheet === 'emojis' && (
                 <div className="space-y-10 pb-12">
                   {EMOJI_LIBRARY.map((cat) => (
@@ -341,13 +363,18 @@ export default function TitanStudioCanvas() {
                   ))}
                 </div>
               )}
+
               {activeSheet === 'papers' && (
                 <div className="grid grid-cols-3 gap-4 pb-12">
                   {Object.keys(PAPERS).map(p => (
                     <div key={p} onClick={() => { setStyle(p); setActiveSheet(null); }} className={`aspect-square rounded-2xl ${PAPERS[p]} border-2 transition-all ${style === p ? 'border-orange-500 scale-95' : 'border-white/5 opacity-40'}`} />
                   ))}
+                  <div onClick={() => { setStyle('custom'); setActiveSheet(null); }} className={`aspect-square rounded-2xl bg-gray-500 border-2 transition-all ${style === 'custom' ? 'border-orange-500 scale-95' : 'border-white/5 opacity-40'}`}>
+                    <input type="color" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} className="w-full h-full opacity-0 cursor-pointer" />
+                  </div>
                 </div>
               )}
+
               {activeSheet === 'borders' && (
                 <div className="grid grid-cols-2 gap-3 pb-12">
                   {Object.keys(BORDERS).map(b => (
@@ -355,11 +382,12 @@ export default function TitanStudioCanvas() {
                   ))}
                 </div>
               )}
+
               {activeSheet === 'shapes' && (
                 <div className="grid grid-cols-4 gap-4 pb-12">
                   {Object.keys(SHAPES).map(s => (
                     <button key={s} onClick={() => { addElement('shape', s); setActiveSheet(null); }} className="aspect-square flex items-center justify-center bg-white/5 rounded-2xl">
-                      <svg width="40" height="40" viewBox="0 0 100 100" style={{ fill: '#ffffff' }}>
+                      <svg width="50" height="50" viewBox="0 0 100 100" style={{ fill: '#ffffff' }}>
                         {SHAPES[s]({})}
                       </svg>
                     </button>
@@ -377,11 +405,12 @@ export default function TitanStudioCanvas() {
             <header className="w-full flex justify-between items-center mb-8">
               <button onClick={() => setPreview(null)} className="p-3 bg-white/5 rounded-full"><X/></button>
               <h2 className="font-black tracking-[0.3em] text-[9px] uppercase italic text-orange-500 text-center flex-1">Titan Export</h2>
+              <div className="w-10"/>
             </header>
-            <div className="w-full max-w-[320px] aspect-[3/4] bg-[#111] rounded-[30px] overflow-hidden shadow-2xl mb-12 border border-white/10">
+            <div className="w-full max-w-[320px] aspect-[3/4] bg-[#111] rounded-[30px] overflow-hidden shadow-2xl mb-12">
               <img src={preview} className="w-full h-full object-contain" />
             </div>
-            <button onClick={() => { const a = document.createElement('a'); a.download = `Titan_${Date.now()}.png`; a.href = preview; a.click(); }} className="w-full max-w-xs py-5 bg-orange-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-orange-600/40">
+            <button onClick={() => { const a = document.createElement('a'); a.download = `Titan_${Date.now()}.png`; a.href = preview; a.click(); }} className="w-full max-w-xs py-5 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
               Guardar en Galería
             </button>
           </motion.div>
@@ -400,15 +429,19 @@ export default function TitanStudioCanvas() {
               <h3 className="font-bold text-lg">Capas</h3>
               <button onClick={() => setShowLayers(false)}><X size={24} /></button>
             </div>
-            {elements.slice().reverse().map((el, idx) => (
+            {elements.slice().sort((a, b) => b.zIndex - a.zIndex).map((el, idx) => (
               <div 
                 key={el.id} 
+                draggable 
+                onDragStart={(e) => e.dataTransfer.setData('text/plain', idx)} 
+                onDragOver={(e) => e.preventDefault()} 
+                onDrop={(e) => reorderElements(parseInt(e.dataTransfer.getData('text/plain')), idx)}
                 onClick={() => selectElement(el.id)}
                 className={`p-4 border-b border-white/5 flex items-center gap-3 cursor-pointer hover:bg-white/10 transition ${selectedId === el.id ? 'bg-orange-600/30' : ''}`}
               >
-                <Layers size={18} className={selectedId === el.id ? 'text-orange-500' : 'text-gray-500'} />
+                <Layers size={18} />
                 <span className="truncate flex-1 text-sm">
-                  {el.type === 'text' ? (el.content.length > 20 ? `${el.content.slice(0, 20)}...` : el.content) : 
+                  {el.type === 'text' ? `Texto: ${el.content.slice(0, 15)}...` : 
                    el.type === 'image' ? 'Imagen' : 
                    el.type === 'shape' ? 'Forma' : 'Emoji'}
                 </span>
@@ -424,10 +457,10 @@ export default function TitanStudioCanvas() {
 function ToolBtn({ icon, label, onClick }) {
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-2.5 active:scale-90 transition-all group">
-      <div className="w-12 h-12 bg-white/[0.03] rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-orange-600 group-hover:text-white transition-all">
-        {React.cloneElement(icon, { size: 20 })}
+      <div className="w-14 h-14 bg-white/[0.03] rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-orange-600 group-hover:text-white transition-all shadow-sm">
+        {React.cloneElement(icon, { size: 22 })}
       </div>
-      <span className="text-[7px] font-black uppercase tracking-widest text-gray-500">{label}</span>
+      <span className="text-[7px] font-black uppercase tracking-widest text-gray-600">{label}</span>
     </button>
   );
 }
