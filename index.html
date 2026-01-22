@@ -4,20 +4,21 @@
     <meta charset="UTF-8" />
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    
-    <title>Titan Studio</title>
-    <meta name="description" content="Titan Studio míni editor.." />
-    
+    <!-- Icono principal (SVG que generé) -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="mask-icon" href="/icon.svg" color="#f97316" />
+
     <link rel="manifest" href="/manifest.json" />
-    
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#050505" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Titan Studio-" />
+    <meta name="apple-mobile-web-app-title" content="Titan Studio" />
 
-    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+    <title>Titan Studio</title>
+    <meta name="description" content="Titan Studio - Mini editor creativo en la web" />
 
     <style>
       body {
@@ -26,6 +27,7 @@
         overflow: hidden;
         background-color: #050505;
         overscroll-behavior-y: contain;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }
       #root {
         height: 100vh;
@@ -41,10 +43,44 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Titan Studio PWA Lista'))
-            .catch(err => console.log('Error en PWA', err));
+            .then(reg => console.log('Service Worker registrado'))
+            .catch(err => console.log('Error al registrar SW:', err));
         });
       }
+
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+
+        const installBtn = document.createElement('button');
+        installBtn.innerText = 'Instalar Titan Studio';
+        installBtn.style.position = 'fixed';
+        installBtn.style.bottom = '20px';
+        installBtn.style.left = '50%';
+        installBtn.style.transform = 'translateX(-50%)';
+        installBtn.style.zIndex = '9999';
+        installBtn.style.padding = '12px 24px';
+        installBtn.style.background = '#f97316';
+        installBtn.style.color = 'white';
+        installBtn.style.border = 'none';
+        installBtn.style.borderRadius = '999px';
+        installBtn.style.fontWeight = 'bold';
+        installBtn.style.cursor = 'pointer';
+        installBtn.style.boxShadow = '0 4px 15px rgba(249,115,22,0.5)';
+
+        installBtn.onclick = async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log('Resultado instalación:', outcome);
+            deferredPrompt = null;
+            installBtn.remove();
+          }
+        };
+
+        document.body.appendChild(installBtn);
+      });
     </script>
   </body>
 </html>
