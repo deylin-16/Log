@@ -4,9 +4,8 @@ import Moveable from "react-moveable";
 import { 
   Type, Image as ImageIcon, X, Trash2, RotateCcw, Palette, Layers, Wand2, Sparkles,
   Undo2, Redo2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
-  Square, Circle, Star, FlipHorizontal, FlipVertical, Droplet, Highlighter,
-  Paintbrush, Eraser, Scissors, Copy, Scissors as Cut, Sparkles as Magic,
-  Smile, Heart, Star as StarIcon, Zap, Sun, Moon, Cloud, Flame, Crop, Blend
+  Square, Circle, Star, FlipHorizontal, FlipVertical, Droplet,
+  RotateCw, Maximize2
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import debounce from 'lodash-es/debounce';
@@ -18,6 +17,11 @@ import { EMOJI_LIBRARY } from './constants/emojis';
 import { getMask } from './utils/masks';
 import { SHAPES } from './constants/shapes';
 
+function getLuminance(color) {
+  const rgb = color.match(/\d+/g).map(Number);
+  return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+}
+
 export default function TitanStudioCanvas() {
   const [style, setStyle] = useState('classic');
   const [border, setBorder] = useState('none');
@@ -28,9 +32,6 @@ export default function TitanStudioCanvas() {
   const [selectedId, setSelectedId] = useState(null);
   const [activeSheet, setActiveSheet] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
-  const [cropMode, setCropMode] = useState(false);
-  const [blendMode, setBlendMode] = useState('normal');
 
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
@@ -38,7 +39,7 @@ export default function TitanStudioCanvas() {
   useEffect(() => {
     const saveInterval = setInterval(() => {
       localStorage.setItem('titanCanvasState', JSON.stringify({ elements, style, border, backgroundColor }));
-    }, 3000);
+    }, 5000);
     return () => clearInterval(saveInterval);
   }, [elements, style, border, backgroundColor]);
 
@@ -46,10 +47,10 @@ export default function TitanStudioCanvas() {
     const savedState = localStorage.getItem('titanCanvasState');
     if (savedState) {
       const { elements: savedElements, style: savedStyle, border: savedBorder, backgroundColor: savedBg } = JSON.parse(savedState);
-      setElements(savedElements || []);
-      setStyle(savedStyle || 'classic');
-      setBorder(savedBorder || 'none');
-      setBackgroundColor(savedBg || '#ffffff');
+      setElements(savedElements);
+      setStyle(savedStyle);
+      setBorder(savedBorder);
+      setBackgroundColor(savedBg);
     }
   }, []);
 
@@ -83,33 +84,29 @@ export default function TitanStudioCanvas() {
   };
 
   const addElement = (type, content = '', extra = {}) => {
+    const bgLuminance = getLuminance(style === 'custom' ? backgroundColor : '#ffffff');
+    const defaultColor = bgLuminance < 0.5 ? '#ffffff' : '#1a1a1a';
     const newEl = {
       id: Date.now().toString(),
       type,
-      content: content || (type === 'text' ? 'Toca para editar' : ''),
-      transform: 'translate(60px, 120px) rotate(0deg) scale(1)',
-      width: type === 'image' || type === 'shape' ? 200 : 'auto',
-      height: type === 'shape' ? 200 : 'auto',
-      size: type === 'text' ? 42 : 90,
+      content: content || (type === 'text' ? 'Escribe algo...' : ''),
+      transform: 'translate(50px, 100px) rotate(0deg) scale(1)',
+      width: type === 'image' || type === 'shape' ? 180 : 'auto',
+      height: type === 'shape' ? 180 : 'auto',
+      size: type === 'text' ? 35 : 80,
       font: FONTS[0].family,
-      color: '#111111',
-      bgColor: 'transparent',
+      color: defaultColor,
       bold: false,
       italic: false,
       underline: false,
-      strikethrough: false,
-      align: 'left',
+      align: 'center',
       opacity: 1,
       shadow: 'none',
-      glow: 'none',
-      letterSpacing: 0,
-      lineHeight: 1.2,
       flipX: false,
       flipY: false,
       zIndex: elements.length + 1,
       mask: 'none',
-      fill: type === 'shape' ? '#ff3366' : undefined,
-      blendMode: 'normal',
+      fill: type === 'shape' ? '#000000' : undefined,
       ...extra
     };
     const newElements = [...elements, newEl];
@@ -123,37 +120,22 @@ export default function TitanStudioCanvas() {
     const newElements = elements.map(el => el.id === id ? { ...el, ...props } : el);
     setElements(newElements);
     pushToHistory(newElements);
-  }, 80);
+  }, 100);
 
   const deleteEl = (id) => {
     const newElements = elements.filter(el => el.id !== id);
     setElements(newElements);
     pushToHistory(newElements);
-    if (selectedId === id) setSelectedId(null);
+    setSelectedId(null);
   };
 
-  const duplicateEl = (id) => {
-    const el = elements.find(e => e.id === id);
-    if (!el) return;
-    const copy = {
-      ...el,
-      id: Date.now().toString(),
-      transform: el.transform.replace(/translate\([^)]+\)/, 'translate(80px, 140px)'),
-      zIndex: elements.length + 1
-    };
-    const newElements = [...elements, copy];
+  const reorderElements = (fromIndex, toIndex) => {
+    const newElements = [...elements];
+    const [moved] = newElements.splice(fromIndex, 1);
+    newElements.splice(toIndex, 0, moved);
+    newElements.forEach((el, idx) => el.zIndex = idx + 1);
     setElements(newElements);
     pushToHistory(newElements);
-    setSelectedId(copy.id);
-  };
-
-  const cropEl = (id) => {
-    setCropMode(true);
-  };
-
-  const applyBlend = (mode) => {
-    setBlendMode(mode);
-    if (selectedId) updateEl(selectedId, { blendMode: mode });
   };
 
   const selectedEl = elements.find(el => el.id === selectedId);
@@ -174,14 +156,10 @@ export default function TitanStudioCanvas() {
           <button onClick={() => { setElements([]); setHistory([]); setHistoryIndex(-1); }} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform"><RotateCcw size={16} /></button>
           <button onClick={async () => {
             setSelectedId(null);
-            await new Promise(r => setTimeout(r, 150));
-            const dataUrl = await toPng(canvasRef.current, { 
-              pixelRatio: 3, 
-              quality: 1,
-              backgroundColor: null,
-              cacheBust: true
-            });
-            setPreview(dataUrl);
+            setTimeout(async () => {
+              const dataUrl = await toPng(canvasRef.current, { pixelRatio: 3, quality: 1 });
+              setPreview(dataUrl);
+            }, 300);
           }} className="bg-white text-black px-4 py-1.5 rounded-lg font-black text-[10px] uppercase">Finalizar</button>
         </div>
       </header>
@@ -203,44 +181,32 @@ export default function TitanStudioCanvas() {
                 transform: `${el.transform} ${el.flipX ? 'scaleX(-1)' : ''} ${el.flipY ? 'scaleY(-1)' : ''}`, 
                 zIndex: el.zIndex,
                 opacity: el.opacity,
-                touchAction: 'auto',
-                boxShadow: el.shadow,
-                filter: el.glow,
-                userSelect: el.type === 'text' ? 'text' : 'none',
-                mixBlendMode: el.blendMode
+                touchAction: 'none',
+                boxShadow: el.shadow
               }}
             >
               {el.type === 'text' ? (
                 <div 
-                  contentEditable
+                  contentEditable 
                   suppressContentEditableWarning
-                  spellCheck={false}
-                  inputMode="text"
-                  onFocus={(e) => { if (e.target.innerText === 'Toca para editar') e.target.innerText = ''; }}
-                  onBlur={(e) => updateEl(el.id, { content: e.target.innerText.trim() || 'Toca para editar' })}
+                  onFocus={(e) => { if (e.target.innerText === 'Escribe algo...') e.target.innerText = ''; }}
+                  onBlur={(e) => updateEl(el.id, { content: e.target.innerText.trim() || 'Escribe algo...' })}
                   style={{ 
                     fontFamily: el.font, 
-                    fontSize: `${el.size}px`, 
+                    fontSize: el.size, 
                     color: el.color, 
-                    backgroundColor: el.bgColor,
                     outline: 'none',
                     fontWeight: el.bold ? 'bold' : 'normal',
                     fontStyle: el.italic ? 'italic' : 'normal',
-                    textDecoration: `${el.underline ? 'underline' : ''} ${el.strikethrough ? 'line-through' : ''}`,
+                    textDecoration: el.underline ? 'underline' : 'none',
                     textAlign: el.align,
-                    minWidth: '40px',
-                    minHeight: '32px',
-                    padding: '8px',
-                    cursor: 'text',
-                    userSelect: 'text',
-                    WebkitUserSelect: 'text',
-                    touchAction: 'auto',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    letterSpacing: `${el.letterSpacing}px`,
-                    lineHeight: el.lineHeight
+                    whiteSpace: 'normal',
+                    wordWrap: 'break-word',
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
+                    padding: '4px 8px'
                   }}
-                  className="inline-block bg-transparent border border-transparent focus:border-orange-500/40 rounded focus:outline-none"
+                  className="inline-block text-center"
                 >
                   {el.content}
                 </div>
@@ -251,15 +217,7 @@ export default function TitanStudioCanvas() {
                   {SHAPES[el.content]({})}
                 </svg>
               ) : (
-                <img 
-                  src={el.content} 
-                  style={{ 
-                    width: el.width, 
-                    clipPath: getMask(el.mask),
-                    filter: el.filter || 'none'
-                  }} 
-                  className="block pointer-events-none select-none" 
-                />
+                <img src={el.content} style={{ width: el.width, clipPath: getMask(el.mask) }} className="block pointer-events-none select-none" />
               )}
             </div>
           ))}
@@ -271,15 +229,15 @@ export default function TitanStudioCanvas() {
               scalable={true}
               rotatable={true}
               pinchable={["scalable", "rotatable"]}
-              keepRatio={selectedEl?.type !== 'text'}
+              keepRatio={selectedEl.type !== 'text'}
               onDrag={({ target, transform }) => {
                 target.style.transform = transform;
                 updateEl(selectedId, { transform });
               }}
               onScale={({ target, transform, drag }) => {
                 target.style.transform = transform;
-                if (selectedEl?.type === 'image') updateEl(selectedId, { width: drag.beforeTranslate[0] });
-                if (selectedEl?.type === 'shape') updateEl(selectedId, { width: drag.beforeTranslate[0], height: drag.beforeTranslate[1] });
+                if (selectedEl.type === 'image') updateEl(selectedId, { width: drag.beforeTranslate[0] });
+                if (selectedEl.type === 'shape') updateEl(selectedId, { width: drag.beforeTranslate[0], height: drag.beforeTranslate[1] });
                 updateEl(selectedId, { transform });
               }}
               onRotate={({ target, transform }) => {
@@ -305,66 +263,35 @@ export default function TitanStudioCanvas() {
             <button onClick={() => updateEl(selectedId, { flipY: !selectedEl.flipY })} className="p-3 bg-blue-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
               <FlipVertical size={20}/>
             </button>
-            <button onClick={() => cropEl(selectedId)} className="p-3 bg-green-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
-              <Crop size={20}/>
+            <button onClick={() => updateEl(selectedId, { transform: selectedEl.transform.replace(/rotate\(\d+deg\)/, 'rotate(0deg)') })} className="p-3 bg-green-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
+              <RotateCw size={20}/>
+            </button>
+            <button onClick={() => updateEl(selectedId, { size: 35 })} className="p-3 bg-purple-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
+              <Maximize2 size={20}/>
             </button>
           </motion.div>
         )}
       </main>
 
       <div className="bg-black/95 border-t border-white/5 pb-4 backdrop-blur-xl">
-        {selectedId && (
-          <div className="px-6 py-4 flex gap-4 overflow-x-auto items-center bg-white/5 border-b border-white/5 no-scrollbar">
-            {selectedEl?.type === 'text' && (
-              <>
-                <button onClick={() => updateEl(selectedId, { bold: !selectedEl.bold })} className={`p-2 ${selectedEl.bold ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Bold size={16}/></button>
-                <button onClick={() => updateEl(selectedId, { italic: !selectedEl.italic })} className={`p-2 ${selectedEl.italic ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Italic size={16}/></button>
-                <button onClick={() => updateEl(selectedId, { underline: !selectedEl.underline })} className={`p-2 ${selectedEl.underline ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Underline size={16}/></button>
-                <button onClick={() => updateEl(selectedId, { align: 'left' })} className={`p-2 ${selectedEl.align === 'left' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignLeft size={16}/></button>
-                <button onClick={() => updateEl(selectedId, { align: 'center' })} className={`p-2 ${selectedEl.align === 'center' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignCenter size={16}/></button>
-                <button onClick={() => updateEl(selectedId, { align: 'right' })} className={`p-2 ${selectedEl.align === 'right' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignRight size={16}/></button>
-                <input type="range" min="0" max="10" step="0.5" value={selectedEl.lineHeight} onChange={(e) => updateEl(selectedId, { lineHeight: parseFloat(e.target.value) })} className="w-24" />
-                <input type="range" min="-5" max="5" step="0.1" value={selectedEl.letterSpacing} onChange={(e) => updateEl(selectedId, { letterSpacing: parseFloat(e.target.value) })} className="w-24" />
-              </>
-            )}
-            <input type="color" value={selectedEl.color || selectedEl.fill} onChange={(e) => updateEl(selectedId, selectedEl.type === 'shape' ? { fill: e.target.value } : { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer scale-125" />
-            <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none" style={{ display: selectedEl.type === 'text' ? 'block' : 'none' }}>
+        {selectedId && selectedEl.type === 'text' && (
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[110]">
+            <button onClick={() => updateEl(selectedId, { bold: !selectedEl.bold })} className={`p-3 ${selectedEl.bold ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><Bold size={20}/></button>
+            <button onClick={() => updateEl(selectedId, { italic: !selectedEl.italic })} className={`p-3 ${selectedEl.italic ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><Italic size={20}/></button>
+            <button onClick={() => updateEl(selectedId, { underline: !selectedEl.underline })} className={`p-3 ${selectedEl.underline ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><Underline size={20}/></button>
+            <button onClick={() => updateEl(selectedId, { align: 'left' })} className={`p-3 ${selectedEl.align === 'left' ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><AlignLeft size={20}/></button>
+            <button onClick={() => updateEl(selectedId, { align: 'center' })} className={`p-3 ${selectedEl.align === 'center' ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><AlignCenter size={20}/></button>
+            <button onClick={() => updateEl(selectedId, { align: 'right' })} className={`p-3 ${selectedEl.align === 'right' ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><AlignRight size={20}/></button>
+            <input type="color" value={selectedEl.color} onChange={(e) => updateEl(selectedId, { color: e.target.value })} className="w-12 h-12 rounded-full bg-transparent border-none cursor-pointer" />
+            <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
               {FONTS.map(f => <option key={f.id} value={f.family} className="bg-black text-white">{f.name}</option>)}
             </select>
-            <input type="range" min="0.1" max="1" step="0.01" value={selectedEl.opacity} onChange={(e) => updateEl(selectedId, { opacity: parseFloat(e.target.value) })} className="w-24" />
+            <input type="range" min="0.1" max="1" step="0.01" value={selectedEl.opacity} onChange={(e) => updateEl(selectedId, { opacity: parseFloat(e.target.value) })} className="w-12" />
             <select onChange={(e) => updateEl(selectedId, { shadow: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
               <option value="none">Sin Sombra</option>
               <option value="0 4px 6px rgba(0,0,0,0.1)">Suave</option>
               <option value="0 10px 15px rgba(0,0,0,0.2)">Media</option>
               <option value="0 20px 25px rgba(0,0,0,0.3)">Fuerte</option>
-            </select>
-            { (selectedEl.type === 'image' || selectedEl.type === 'shape') && (
-              <select value={selectedEl.mask} onChange={(e) => updateEl(selectedId, { mask: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
-                <option value="none">Sin Máscara</option>
-                <option value="circle">Círculo</option>
-                <option value="star">Estrella</option>
-              </select>
-            )}
-            { selectedEl.type === 'image' && (
-              <select onChange={(e) => updateEl(selectedId, { filter: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
-                <option value="none">Sin Filtro</option>
-                <option value="grayscale(100%)">Blanco y Negro</option>
-                <option value="sepia(100%)">Sepia</option>
-                <option value="brightness(150%)">Brillante</option>
-                <option value="contrast(200%)">Contraste Alto</option>
-                <option value="hue-rotate(90deg)">Tono Verde</option>
-                <option value="invert(100%)">Invertido</option>
-                <option value="saturate(200%)">Saturado</option>
-                <option value="blur(5px)">Desenfocado</option>
-              </select>
-            )}
-            <select onChange={(e) => applyBlend(e.target.value)} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
-              <option value="normal">Modo Normal</option>
-              <option value="multiply">Multiplicar</option>
-              <option value="screen">Pantalla</option>
-              <option value="overlay">Superponer</option>
-              <option value="darken">Oscurecer</option>
-              <option value="lighten">Aclarar</option>
             </select>
           </div>
         )}
