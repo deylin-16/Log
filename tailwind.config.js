@@ -2,7 +2,7 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // Esto le dice a Tailwind que busque aquí
+    "./src/**/*.{js,ts,jsx,tsx}", 
   ],
   theme: {
     extend: {
