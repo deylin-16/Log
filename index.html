@@ -4,84 +4,102 @@
     <meta charset="UTF-8" />
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Icono principal (SVG que generé) -->
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
-    <link rel="mask-icon" href="/icon.svg" color="#f97316" />
-
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="icon.svg" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    
+    <link rel="manifest" href="manifest.json" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#050505" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Titan Studio" />
 
     <title>Titan Studio</title>
-    <meta name="description" content="Titan Studio - Mini editor creativo en la web" />
-    <meta property="og:image" content="/icon.svg" />
-
+    
     <style>
       body {
         margin: 0;
         padding: 0;
         overflow: hidden;
         background-color: #050505;
-        overscroll-behavior-y: contain;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-family: system-ui, -apple-system, sans-serif;
       }
       #root {
         height: 100vh;
         width: 100vw;
       }
+      /* Loader de bienvenida estilo Titán */
+      .loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        color: #f97316;
+      }
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #1a0a0a;
+        border-top: 5px solid #f97316;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="loading-screen">
+        <div class="spinner"></div>
+        <p style="margin-top: 20px; font-weight: bold; letter-spacing: 2px;">TITÁN STUDIO</p>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.jsx"></script>
 
     <script>
+      // Service Worker Simplificado
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker registrado'))
-            .catch(err => console.log('Error al registrar SW:', err));
-        });
+        navigator.serviceWorker.register('sw.js').catch(() => {});
       }
 
+      // Lógica de instalación mejorada
       let deferredPrompt;
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
+        showInstallButton();
+      });
 
-        const installBtn = document.createElement('button');
-        installBtn.innerText = 'Instalar Titan Studio';
-        installBtn.style.position = 'fixed';
-        installBtn.style.bottom = '20px';
-        installBtn.style.left = '50%';
-        installBtn.style.transform = 'translateX(-50%)';
-        installBtn.style.zIndex = '9999';
-        installBtn.style.padding = '12px 24px';
-        installBtn.style.background = '#f97316';
-        installBtn.style.color = 'white';
-        installBtn.style.border = 'none';
-        installBtn.style.borderRadius = '999px';
-        installBtn.style.fontWeight = 'bold';
-        installBtn.style.cursor = 'pointer';
-        installBtn.style.boxShadow = '0 4px 15px rgba(249,115,22,0.5)';
+      function showInstallButton() {
+        const btn = document.createElement('button');
+        btn.innerHTML = '✨ Instalar Titán Studio';
+        Object.assign(btn.style, {
+          position: 'fixed',
+          bottom: '30px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: '1000',
+          padding: '14px 28px',
+          background: 'linear-gradient(135deg, #f97316, #ea580c)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '15px',
+          fontWeight: 'bold',
+          boxShadow: '0 10px 20px rgba(0,0,0,0.4)',
+          cursor: 'pointer'
+        });
 
-        installBtn.onclick = async () => {
+        btn.onclick = async () => {
           if (deferredPrompt) {
             deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log('Resultado instalación:', outcome);
             deferredPrompt = null;
-            installBtn.remove();
+            btn.remove();
           }
         };
-
-        document.body.appendChild(installBtn);
-      });
+        document.body.appendChild(btn);
+      }
     </script>
   </body>
 </html>
