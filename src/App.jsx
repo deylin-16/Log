@@ -9,7 +9,7 @@ import {
   Square, Circle, Star, FlipHorizontal, FlipVertical
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
-import { debounce } from 'lodash'; // Assuming lodash is installed for debounce
+import debounce from 'lodash-es/debounce'; 
 
 import { PAPERS } from './constants/papers';
 import { BORDERS } from './constants/borders';
