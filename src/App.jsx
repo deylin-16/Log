@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from "react-moveable";
 import { 
-  Type, Image as ImageIcon, X, Trash2, RotateCcw, Palette, Layers, Wand2, Sparkles, 
-  Undo2, Redo2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Droplet, Sliders,
+  Type, Image as ImageIcon, X, Trash2, RotateCcw, Palette, Layers, Wand2, Sparkles,
+  Undo2, Redo2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Droplet,
   Square, Circle, Star, FlipHorizontal, FlipVertical
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
@@ -36,6 +36,7 @@ export default function TitanStudioCanvas() {
   const [selectedId, setSelectedId] = useState(null);
   const [activeSheet, setActiveSheet] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [showLayers, setShowLayers] = useState(false);
 
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
@@ -51,10 +52,10 @@ export default function TitanStudioCanvas() {
     const savedState = localStorage.getItem('titanCanvasState');
     if (savedState) {
       const { elements: savedElements, style: savedStyle, border: savedBorder, backgroundColor: savedBg } = JSON.parse(savedState);
-      setElements(savedElements);
-      setStyle(savedStyle);
-      setBorder(savedBorder);
-      setBackgroundColor(savedBg);
+      setElements(savedElements || []);
+      setStyle(savedStyle || 'classic');
+      setBorder(savedBorder || 'none');
+      setBackgroundColor(savedBg || '#ffffff');
     }
   }, []);
 
@@ -92,7 +93,7 @@ export default function TitanStudioCanvas() {
     const newEl = {
       id: Date.now().toString(),
       type,
-      content: content || (type === 'text' ? 'Toca para editar' : ''),
+      content: content || (type === 'text' ? 'Toca para editar' : type === 'emoji' ? '😊' : ''),
       transform: 'translate(50px, 100px) rotate(0deg) scale(1)',
       width: type === 'image' || type === 'shape' ? 180 : 'auto',
       height: type === 'shape' ? 180 : 'auto',
@@ -270,7 +271,7 @@ export default function TitanStudioCanvas() {
         )}
       </main>
 
-      <div className="bg-black/95 border-t border-white/5 pb-4 backdrop-blur-xl">
+      <div className="bg-black/95 border-t border-white/5 pb-4 backdrop-blur-xl relative z-50">
         {selectedId && (
           <div className="px-6 py-4 flex gap-4 overflow-x-auto items-center bg-white/5 border-b border-white/5 no-scrollbar">
             {selectedEl.type === 'text' && (
@@ -294,14 +295,14 @@ export default function TitanStudioCanvas() {
               <option value="0 10px 15px rgba(0,0,0,0.2)">Media</option>
               <option value="0 20px 25px rgba(0,0,0,0.3)">Fuerte</option>
             </select>
-            { (selectedEl.type === 'image' || selectedEl.type === 'shape') && (
+            {(selectedEl.type === 'image' || selectedEl.type === 'shape') && (
               <select value={selectedEl.mask} onChange={(e) => updateEl(selectedId, { mask: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
                 <option value="none">Sin Máscara</option>
                 <option value="circle">Círculo</option>
                 <option value="star">Estrella</option>
               </select>
             )}
-            { selectedEl.type === 'image' && (
+            {selectedEl.type === 'image' && (
               <select onChange={(e) => updateEl(selectedId, { filter: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
                 <option value="none">Sin Filtro</option>
                 <option value="grayscale(100%)">Blanco y Negro</option>
@@ -312,13 +313,15 @@ export default function TitanStudioCanvas() {
             )}
           </div>
         )}
-        <nav className="p-6 grid grid-cols-6 gap-2">
+
+        <nav className="p-4 grid grid-cols-7 gap-2 bg-black/90 border-t border-white/10">
           <ToolBtn icon={<Palette/>} label="Fondo" onClick={() => setActiveSheet('papers')} />
           <ToolBtn icon={<Layers/>} label="Marco" onClick={() => setActiveSheet('borders')} />
           <ToolBtn icon={<Type/>} label="Texto" onClick={() => addElement('text')} />
           <ToolBtn icon={<Sparkles/>} label="Sticker" onClick={() => setActiveSheet('emojis')} />
           <ToolBtn icon={<ImageIcon/>} label="Foto" onClick={() => fileRef.current.click()} />
           <ToolBtn icon={<Square/>} label="Forma" onClick={() => setActiveSheet('shapes')} />
+          <ToolBtn icon={<Layers/>} label="Capas" onClick={() => setShowLayers(!showLayers)} />
         </nav>
       </div>
 
@@ -406,15 +409,39 @@ export default function TitanStudioCanvas() {
         )}
       </AnimatePresence>
 
-      <motion.div initial={{ x: '100%' }} animate={{ x: selectedId ? 0 : '100%' }} className="absolute top-20 right-0 w-48 bg-black/90 p-4 rounded-l-2xl shadow-2xl z-[120] max-h-[50vh] overflow-y-auto">
-        <h3 className="text-xs font-bold mb-2">Capas</h3>
-        {elements.slice().sort((a, b) => b.zIndex - a.zIndex).map((el, idx) => (
-          <div key={el.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', idx)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => reorderElements(parseInt(e.dataTransfer.getData('text/plain')), idx)} className={`flex items-center gap-2 p-2 rounded-lg ${el.id === selectedId ? 'bg-orange-600' : 'bg-white/5'} mb-1 cursor-move`}>
-            <Layers size={12} />
-            <span className="text-xs">{el.type.charAt(0).toUpperCase() + el.type.slice(1)} {el.content.slice(0, 10)}</span>
-          </div>
-        ))}
-      </motion.div>
+      <AnimatePresence>
+        {showLayers && (
+          <motion.div 
+            initial={{ x: '100%' }} 
+            animate={{ x: 0 }} 
+            exit={{ x: '100%' }} 
+            className="fixed top-0 right-0 h-full w-72 bg-black/95 backdrop-blur-xl border-l border-white/10 z-[110] overflow-y-auto shadow-2xl"
+          >
+            <div className="p-4 border-b border-white/10 flex justify-between items-center">
+              <h3 className="font-bold text-lg">Capas</h3>
+              <button onClick={() => setShowLayers(false)}><X size={24} /></button>
+            </div>
+            {elements.slice().sort((a, b) => b.zIndex - a.zIndex).map((el, idx) => (
+              <div 
+                key={el.id} 
+                draggable 
+                onDragStart={(e) => e.dataTransfer.setData('text/plain', idx)} 
+                onDragOver={(e) => e.preventDefault()} 
+                onDrop={(e) => reorderElements(parseInt(e.dataTransfer.getData('text/plain')), idx)}
+                onClick={() => selectElement(el.id)}
+                className={`p-4 border-b border-white/5 flex items-center gap-3 cursor-pointer hover:bg-white/10 transition ${selectedId === el.id ? 'bg-orange-600/30' : ''}`}
+              >
+                <Layers size={18} />
+                <span className="truncate flex-1 text-sm">
+                  {el.type === 'text' ? `Texto: ${el.content.slice(0, 15)}...` : 
+                   el.type === 'image' ? 'Imagen' : 
+                   el.type === 'shape' ? 'Forma' : 'Emoji'}
+                </span>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
