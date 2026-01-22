@@ -16,14 +16,14 @@ import { BORDERS } from './constants/borders';
 import { FONTS } from './constants/fonts';
 import { EMOJI_LIBRARY } from './constants/emojis';
 import { getMask } from './utils/masks';
-import { SHAPES } from './constants/shapes'; // New constant for shapes
+import { SHAPES } from './constants/shapes';
 
 export default function TitanStudioCanvas() {
   const [style, setStyle] = useState('classic');
   const [border, setBorder] = useState('none');
-  const [backgroundColor, setBackgroundColor] = useState('#ffffff'); // New: custom background color
+  const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [elements, setElements] = useState([]);
-  const [history, setHistory] = useState([]); // For undo/redo
+  const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [selectedId, setSelectedId] = useState(null);
   const [activeSheet, setActiveSheet] = useState(null);
@@ -33,7 +33,6 @@ export default function TitanStudioCanvas() {
   const fileRef = useRef(null);
 
   useEffect(() => {
-    // Auto-save to localStorage every 5 seconds
     const saveInterval = setInterval(() => {
       localStorage.setItem('titanCanvasState', JSON.stringify({ elements, style, border, backgroundColor }));
     }, 5000);
@@ -41,7 +40,6 @@ export default function TitanStudioCanvas() {
   }, [elements, style, border, backgroundColor]);
 
   useEffect(() => {
-    // Load from localStorage on mount
     const savedState = localStorage.getItem('titanCanvasState');
     if (savedState) {
       const { elements: savedElements, style: savedStyle, border: savedBorder, backgroundColor: savedBg } = JSON.parse(savedState);
@@ -102,7 +100,7 @@ export default function TitanStudioCanvas() {
       flipY: false,
       zIndex: elements.length + 1,
       mask: 'none',
-      fill: type === 'shape' ? '#000000' : undefined, // For shapes
+      fill: type === 'shape' ? '#000000' : undefined,
       ...extra
     };
     const newElements = [...elements, newEl];
@@ -152,10 +150,14 @@ export default function TitanStudioCanvas() {
           <button onClick={() => { setElements([]); setHistory([]); setHistoryIndex(-1); }} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform"><RotateCcw size={16} /></button>
           <button onClick={async () => {
             setSelectedId(null);
-            setTimeout(async () => {
-              const dataUrl = await toPng(canvasRef.current, { pixelRatio: 3, quality: 1 });
-              setPreview(dataUrl);
-            }, 300);
+            await new Promise(r => setTimeout(r, 150));
+            const dataUrl = await toPng(canvasRef.current, { 
+              pixelRatio: 3, 
+              quality: 1,
+              backgroundColor: null,
+              cacheBust: true
+            });
+            setPreview(dataUrl);
           }} className="bg-white text-black px-4 py-1.5 rounded-lg font-black text-[10px] uppercase">Finalizar</button>
         </div>
       </header>
@@ -177,27 +179,39 @@ export default function TitanStudioCanvas() {
                 transform: `${el.transform} ${el.flipX ? 'scaleX(-1)' : ''} ${el.flipY ? 'scaleY(-1)' : ''}`, 
                 zIndex: el.zIndex,
                 opacity: el.opacity,
-                touchAction: 'none',
-                boxShadow: el.shadow
+                touchAction: 'auto',
+                boxShadow: el.shadow,
+                userSelect: el.type === 'text' ? 'text' : 'none'
               }}
             >
               {el.type === 'text' ? (
                 <div 
-                  contentEditable 
+                  contentEditable
                   suppressContentEditableWarning
+                  spellCheck={false}
+                  inputMode="text"
                   onFocus={(e) => { if (e.target.innerText === 'Escribe algo...') e.target.innerText = ''; }}
                   onBlur={(e) => updateEl(el.id, { content: e.target.innerText.trim() || 'Escribe algo...' })}
                   style={{ 
                     fontFamily: el.font, 
-                    fontSize: el.size, 
+                    fontSize: `${el.size}px`, 
                     color: el.color, 
                     outline: 'none',
                     fontWeight: el.bold ? 'bold' : 'normal',
                     fontStyle: el.italic ? 'italic' : 'normal',
                     textDecoration: el.underline ? 'underline' : 'none',
-                    textAlign: el.align
+                    textAlign: el.align,
+                    minWidth: '40px',
+                    minHeight: '32px',
+                    padding: '8px',
+                    cursor: 'text',
+                    userSelect: 'text',
+                    WebkitUserSelect: 'text',
+                    touchAction: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
                   }}
-                  className="p-2 whitespace-nowrap min-w-[20px]"
+                  className="inline-block bg-transparent border border-transparent focus:border-orange-500/40 rounded focus:outline-none"
                 >
                   {el.content}
                 </div>
@@ -213,7 +227,7 @@ export default function TitanStudioCanvas() {
                   style={{ 
                     width: el.width, 
                     clipPath: getMask(el.mask),
-                    filter: el.filter || 'none' // New: image filters
+                    filter: el.filter || 'none'
                   }} 
                   className="block pointer-events-none select-none" 
                 />
@@ -228,15 +242,13 @@ export default function TitanStudioCanvas() {
               scalable={true}
               rotatable={true}
               pinchable={["scalable", "rotatable"]}
-              keepRatio={selectedEl.type !== 'text'}
+              keepRatio={selectedEl?.type !== 'text'}
               onDrag={({ target, transform }) => {
                 target.style.transform = transform;
                 updateEl(selectedId, { transform });
               }}
-              onScale={({ target, transform, drag }) => {
+              onScale={({ target, transform }) => {
                 target.style.transform = transform;
-                if (selectedEl.type === 'image') updateEl(selectedId, { width: drag.beforeTranslate[0] });
-                if (selectedEl.type === 'shape') updateEl(selectedId, { width: drag.beforeTranslate[0], height: drag.beforeTranslate[1] });
                 updateEl(selectedId, { transform });
               }}
               onRotate={({ target, transform }) => {
@@ -269,7 +281,7 @@ export default function TitanStudioCanvas() {
       <div className="bg-black/95 border-t border-white/5 pb-4 backdrop-blur-xl">
         {selectedId && (
           <div className="px-6 py-4 flex gap-4 overflow-x-auto items-center bg-white/5 border-b border-white/5 no-scrollbar">
-            {selectedEl.type === 'text' && (
+            {selectedEl?.type === 'text' && (
               <>
                 <button onClick={() => updateEl(selectedId, { bold: !selectedEl.bold })} className={`p-2 ${selectedEl.bold ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Bold size={16}/></button>
                 <button onClick={() => updateEl(selectedId, { italic: !selectedEl.italic })} className={`p-2 ${selectedEl.italic ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Italic size={16}/></button>
@@ -279,26 +291,25 @@ export default function TitanStudioCanvas() {
                 <button onClick={() => updateEl(selectedId, { align: 'right' })} className={`p-2 ${selectedEl.align === 'right' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignRight size={16}/></button>
               </>
             )}
-            <input type="color" value={selectedEl.color || selectedEl.fill} onChange={(e) => updateEl(selectedId, selectedEl.type === 'shape' ? { fill: e.target.value } : { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer scale-125" />
-            <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none" style={{ display: selectedEl.type === 'text' ? 'block' : 'none' }}>
+            <input type="color" value={selectedEl?.color || selectedEl?.fill || '#000000'} onChange={(e) => updateEl(selectedId, selectedEl?.type === 'shape' ? { fill: e.target.value } : { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer scale-125" />
+            <select value={selectedEl?.font || FONTS[0].family} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none" style={{ display: selectedEl?.type === 'text' ? 'block' : 'none' }}>
               {FONTS.map(f => <option key={f.id} value={f.family} className="bg-black text-white">{f.name}</option>)}
             </select>
-            <input type="range" min="0.1" max="1" step="0.01" value={selectedEl.opacity} onChange={(e) => updateEl(selectedId, { opacity: parseFloat(e.target.value) })} className="w-24" />
+            <input type="range" min="0.1" max="1" step="0.01" value={selectedEl?.opacity ?? 1} onChange={(e) => updateEl(selectedId, { opacity: parseFloat(e.target.value) })} className="w-24" />
             <select onChange={(e) => updateEl(selectedId, { shadow: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
               <option value="none">Sin Sombra</option>
               <option value="0 4px 6px rgba(0,0,0,0.1)">Suave</option>
               <option value="0 10px 15px rgba(0,0,0,0.2)">Media</option>
               <option value="0 20px 25px rgba(0,0,0,0.3)">Fuerte</option>
             </select>
-            { (selectedEl.type === 'image' || selectedEl.type === 'shape') && (
-              <select value={selectedEl.mask} onChange={(e) => updateEl(selectedId, { mask: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+            {(selectedEl?.type === 'image' || selectedEl?.type === 'shape') && (
+              <select value={selectedEl?.mask || 'none'} onChange={(e) => updateEl(selectedId, { mask: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
                 <option value="none">Sin Máscara</option>
                 <option value="circle">Círculo</option>
                 <option value="star">Estrella</option>
-                {/* Add more masks */}
               </select>
             )}
-            { selectedEl.type === 'image' && (
+            {selectedEl?.type === 'image' && (
               <select onChange={(e) => updateEl(selectedId, { filter: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
                 <option value="none">Sin Filtro</option>
                 <option value="grayscale(100%)">Blanco y Negro</option>
@@ -403,7 +414,6 @@ export default function TitanStudioCanvas() {
         )}
       </AnimatePresence>
 
-      {/* Layers Panel */}
       <motion.div initial={{ x: '100%' }} animate={{ x: selectedId ? 0 : '100%' }} className="absolute top-20 right-0 w-48 bg-black/90 p-4 rounded-l-2xl shadow-2xl z-[120] max-h-[50vh] overflow-y-auto">
         <h3 className="text-xs font-bold mb-2">Capas</h3>
         {elements.slice().sort((a, b) => b.zIndex - a.zIndex).map((el, idx) => (
