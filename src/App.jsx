@@ -2,10 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from "react-moveable";
 import { 
-  Type, Image as ImageIcon, X, Trash2, RotateCcw, Palette, Layers, Wand2, Sparkles,
-  Undo2, Redo2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
-  Square, Circle, Star, FlipHorizontal, FlipVertical, Droplet,
-  RotateCw, Maximize2
+  Type, Image as ImageIcon, X, Trash2, RotateCcw, Palette, Layers, Wand2, Sparkles, 
+  Undo2, Redo2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Droplet, Sliders,
+  Square, Circle, Star, FlipHorizontal, FlipVertical
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import debounce from 'lodash-es/debounce';
@@ -89,7 +88,7 @@ export default function TitanStudioCanvas() {
     const newEl = {
       id: Date.now().toString(),
       type,
-      content: content || (type === 'text' ? 'Escribe algo...' : ''),
+      content: content || (type === 'text' ? 'Toca para editar' : ''),
       transform: 'translate(50px, 100px) rotate(0deg) scale(1)',
       width: type === 'image' || type === 'shape' ? 180 : 'auto',
       height: type === 'shape' ? 180 : 'auto',
@@ -106,7 +105,7 @@ export default function TitanStudioCanvas() {
       flipY: false,
       zIndex: elements.length + 1,
       mask: 'none',
-      fill: type === 'shape' ? '#000000' : undefined,
+      fill: type === 'shape' ? defaultColor : undefined,
       ...extra
     };
     const newElements = [...elements, newEl];
@@ -189,8 +188,8 @@ export default function TitanStudioCanvas() {
                 <div 
                   contentEditable 
                   suppressContentEditableWarning
-                  onFocus={(e) => { if (e.target.innerText === 'Escribe algo...') e.target.innerText = ''; }}
-                  onBlur={(e) => updateEl(el.id, { content: e.target.innerText.trim() || 'Escribe algo...' })}
+                  onFocus={(e) => { if (e.target.innerText === 'Toca para editar') e.target.innerText = ''; }}
+                  onBlur={(e) => updateEl(el.id, { content: e.target.innerText.trim() || 'Toca para editar' })}
                   style={{ 
                     fontFamily: el.font, 
                     fontSize: el.size, 
@@ -202,7 +201,7 @@ export default function TitanStudioCanvas() {
                     textAlign: el.align,
                     whiteSpace: 'normal',
                     wordWrap: 'break-word',
-                    maxWidth: '100%',
+                    maxWidth: 'calc(100% - 20px)',
                     boxSizing: 'border-box',
                     padding: '4px 8px'
                   }}
@@ -263,37 +262,51 @@ export default function TitanStudioCanvas() {
             <button onClick={() => updateEl(selectedId, { flipY: !selectedEl.flipY })} className="p-3 bg-blue-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
               <FlipVertical size={20}/>
             </button>
-            <button onClick={() => updateEl(selectedId, { transform: selectedEl.transform.replace(/rotate\(\d+deg\)/, 'rotate(0deg)') })} className="p-3 bg-green-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
-              <RotateCw size={20}/>
-            </button>
-            <button onClick={() => updateEl(selectedId, { size: 35 })} className="p-3 bg-purple-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
-              <Maximize2 size={20}/>
-            </button>
           </motion.div>
         )}
       </main>
 
       <div className="bg-black/95 border-t border-white/5 pb-4 backdrop-blur-xl">
-        {selectedId && selectedEl.type === 'text' && (
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[110]">
-            <button onClick={() => updateEl(selectedId, { bold: !selectedEl.bold })} className={`p-3 ${selectedEl.bold ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><Bold size={20}/></button>
-            <button onClick={() => updateEl(selectedId, { italic: !selectedEl.italic })} className={`p-3 ${selectedEl.italic ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><Italic size={20}/></button>
-            <button onClick={() => updateEl(selectedId, { underline: !selectedEl.underline })} className={`p-3 ${selectedEl.underline ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><Underline size={20}/></button>
-            <button onClick={() => updateEl(selectedId, { align: 'left' })} className={`p-3 ${selectedEl.align === 'left' ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><AlignLeft size={20}/></button>
-            <button onClick={() => updateEl(selectedId, { align: 'center' })} className={`p-3 ${selectedEl.align === 'center' ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><AlignCenter size={20}/></button>
-            <button onClick={() => updateEl(selectedId, { align: 'right' })} className={`p-3 ${selectedEl.align === 'right' ? 'bg-orange-600' : 'bg-white/10'} rounded-full`}><AlignRight size={20}/></button>
-            <input type="color" value={selectedEl.color} onChange={(e) => updateEl(selectedId, { color: e.target.value })} className="w-12 h-12 rounded-full bg-transparent border-none cursor-pointer" />
-            <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+        {selectedId && (
+          <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[110] bg-black/80 p-3 rounded-2xl shadow-2xl">
+            {selectedEl.type === 'text' && (
+              <>
+                <button onClick={() => updateEl(selectedId, { bold: !selectedEl.bold })} className={`p-2 ${selectedEl.bold ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Bold size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { italic: !selectedEl.italic })} className={`p-2 ${selectedEl.italic ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Italic size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { underline: !selectedEl.underline })} className={`p-2 ${selectedEl.underline ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Underline size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { align: 'left' })} className={`p-2 ${selectedEl.align === 'left' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignLeft size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { align: 'center' })} className={`p-2 ${selectedEl.align === 'center' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignCenter size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { align: 'right' })} className={`p-2 ${selectedEl.align === 'right' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignRight size={16}/></button>
+              </>
+            )}
+            <input type="color" value={selectedEl.color || selectedEl.fill} onChange={(e) => updateEl(selectedId, selectedEl.type === 'shape' ? { fill: e.target.value } : { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer scale-125" />
+            <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none" style={{ display: selectedEl.type === 'text' ? 'block' : 'none' }}>
               {FONTS.map(f => <option key={f.id} value={f.family} className="bg-black text-white">{f.name}</option>)}
             </select>
-            <input type="range" min="0.1" max="1" step="0.01" value={selectedEl.opacity} onChange={(e) => updateEl(selectedId, { opacity: parseFloat(e.target.value) })} className="w-12" />
+            <input type="range" min="0.1" max="1" step="0.01" value={selectedEl.opacity} onChange={(e) => updateEl(selectedId, { opacity: parseFloat(e.target.value) })} className="w-24" />
             <select onChange={(e) => updateEl(selectedId, { shadow: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
               <option value="none">Sin Sombra</option>
               <option value="0 4px 6px rgba(0,0,0,0.1)">Suave</option>
               <option value="0 10px 15px rgba(0,0,0,0.2)">Media</option>
               <option value="0 20px 25px rgba(0,0,0,0.3)">Fuerte</option>
             </select>
-          </div>
+            { (selectedEl.type === 'image' || selectedEl.type === 'shape') && (
+              <select value={selectedEl.mask} onChange={(e) => updateEl(selectedId, { mask: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+                <option value="none">Sin Máscara</option>
+                <option value="circle">Círculo</option>
+                <option value="star">Estrella</option>
+              </select>
+            )}
+            { selectedEl.type === 'image' && (
+              <select onChange={(e) => updateEl(selectedId, { filter: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+                <option value="none">Sin Filtro</option>
+                <option value="grayscale(100%)">Blanco y Negro</option>
+                <option value="sepia(100%)">Sepia</option>
+                <option value="brightness(150%)">Brillante</option>
+                <option value="contrast(200%)">Contraste Alto</option>
+              </select>
+            )}
+          </motion.div>
         )}
         <nav className="p-6 grid grid-cols-6 gap-2">
           <ToolBtn icon={<Palette/>} label="Fondo" onClick={() => setActiveSheet('papers')} />
