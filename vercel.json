@@ -2,6 +2,9 @@
   "cleanUrls": true,
   "framework": "vite",
   "rewrites": [
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
