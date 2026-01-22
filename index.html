@@ -4,9 +4,18 @@
     <meta charset="UTF-8" />
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Titan Studio" />
+    <meta property="og:description" content="Editor creativo profesional de alta velocidad" />
+    <meta property="og:url" content="https://edit.dynlayer.xyz/" />
+    <meta property="og:image" content="https://edit.dynlayer.xyz/icon.svg" /> <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Titan Studio" />
+    <meta name="twitter:description" content="Editor creativo míni.." />
+    <meta name="twitter:image" content="https://edit.dynlayer.xyz/icon.svg" />
+
     <link rel="icon" type="image/svg+xml" href="icon.svg" />
     <link rel="apple-touch-icon" href="icon.svg" />
-    
+
     <link rel="manifest" href="manifest.json" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -15,7 +24,7 @@
     <meta name="apple-mobile-web-app-title" content="Titan Studio" />
 
     <title>Titan Studio</title>
-    
+
     <style>
       body {
         margin: 0;
@@ -28,7 +37,6 @@
         height: 100vh;
         width: 100vw;
       }
-      /* Loader de bienvenida estilo Titán */
       .loading-screen {
         display: flex;
         flex-direction: column;
@@ -59,12 +67,10 @@
     <script type="module" src="/src/main.jsx"></script>
 
     <script>
-      // Service Worker Simplificado
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(() => {});
       }
 
-      // Lógica de instalación mejorada
       let deferredPrompt;
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
