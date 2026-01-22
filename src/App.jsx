@@ -6,7 +6,7 @@ import {
   Undo2, Redo2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline,
   Square, Circle, Star, FlipHorizontal, FlipVertical, Droplet, Highlighter,
   Paintbrush, Eraser, Scissors, Copy, Scissors as Cut, Sparkles as Magic,
-  Smile, Heart, Star as StarIcon, Zap, Sun, Moon, Cloud, Flame
+  Smile, Heart, Star as StarIcon, Zap, Sun, Moon, Cloud, Flame, Crop, Blend
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import debounce from 'lodash-es/debounce';
@@ -29,6 +29,8 @@ export default function TitanStudioCanvas() {
   const [activeSheet, setActiveSheet] = useState(null);
   const [preview, setPreview] = useState(null);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [cropMode, setCropMode] = useState(false);
+  const [blendMode, setBlendMode] = useState('normal');
 
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
@@ -36,7 +38,7 @@ export default function TitanStudioCanvas() {
   useEffect(() => {
     const saveInterval = setInterval(() => {
       localStorage.setItem('titanCanvasState', JSON.stringify({ elements, style, border, backgroundColor }));
-    }, 4000);
+    }, 3000);
     return () => clearInterval(saveInterval);
   }, [elements, style, border, backgroundColor]);
 
@@ -107,6 +109,7 @@ export default function TitanStudioCanvas() {
       zIndex: elements.length + 1,
       mask: 'none',
       fill: type === 'shape' ? '#ff3366' : undefined,
+      blendMode: 'normal',
       ...extra
     };
     const newElements = [...elements, newEl];
@@ -144,36 +147,50 @@ export default function TitanStudioCanvas() {
     setSelectedId(copy.id);
   };
 
+  const cropEl = (id) => {
+    setCropMode(true);
+  };
+
+  const applyBlend = (mode) => {
+    setBlendMode(mode);
+    if (selectedId) updateEl(selectedId, { blendMode: mode });
+  };
+
   const selectedEl = elements.find(el => el.id === selectedId);
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-[#0a0015] to-[#1a0033] text-white flex flex-col overflow-hidden font-sans select-none">
+    <div className="h-screen w-full bg-[#050505] text-white flex flex-col overflow-hidden font-sans select-none">
 
-      <header className="p-4 flex justify-between items-center bg-black/80 border-b border-purple-500/20 backdrop-blur-xl z-[100]">
+      <header className="p-4 flex justify-between items-center bg-black border-b border-white/5 z-[100]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl shadow-purple-500/40">
-            <Sparkles size={20} />
+          <div className="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
+            <Wand2 size={18} />
           </div>
-          <h1 className="font-black text-xl uppercase italic tracking-tighter bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">TITAN STUDIO</h1>
+          <h1 className="font-black text-base uppercase italic tracking-tighter">Titan Studio</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={undo} disabled={historyIndex <= 0} className="p-2.5 bg-white/10 rounded-xl active:scale-95 transition disabled:opacity-40"><Undo2 size={18} /></button>
-          <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2.5 bg-white/10 rounded-xl active:scale-95 transition disabled:opacity-40"><Redo2 size={18} /></button>
-          <button onClick={() => { setElements([]); setHistory([]); setHistoryIndex(-1); }} className="p-2.5 bg-white/10 rounded-xl active:scale-95 transition"><RotateCcw size={18} /></button>
+          <button onClick={undo} disabled={historyIndex <= 0} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform disabled:opacity-50"><Undo2 size={16} /></button>
+          <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform disabled:opacity-50"><Redo2 size={16} /></button>
+          <button onClick={() => { setElements([]); setHistory([]); setHistoryIndex(-1); }} className="p-2 bg-white/5 rounded-lg active:scale-90 transition-transform"><RotateCcw size={16} /></button>
           <button onClick={async () => {
             setSelectedId(null);
-            await new Promise(r => setTimeout(r, 180));
-            const dataUrl = await toPng(canvasRef.current, { pixelRatio: 3.2, quality: 0.98 });
+            await new Promise(r => setTimeout(r, 150));
+            const dataUrl = await toPng(canvasRef.current, { 
+              pixelRatio: 3, 
+              quality: 1,
+              backgroundColor: null,
+              cacheBust: true
+            });
             setPreview(dataUrl);
-          }} className="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-2 rounded-xl font-black text-sm uppercase tracking-wider shadow-lg shadow-purple-500/50 active:scale-95 transition">EXPORTAR</button>
+          }} className="bg-white text-black px-4 py-1.5 rounded-lg font-black text-[10px] uppercase">Finalizar</button>
         </div>
       </header>
 
-      <main className="flex-1 relative flex items-center justify-center p-5 bg-gradient-to-b from-[#0f001a] to-[#1a0033] overflow-hidden">
+      <main className="flex-1 relative flex items-center justify-center p-4 bg-[#0a0a0a] overflow-hidden">
         <div 
           ref={canvasRef}
           onClick={() => setSelectedId(null)}
-          className={`relative w-full max-w-[380px] aspect-[9/16] rounded-3xl shadow-2xl transition-all duration-600 overflow-hidden border-2 border-white/5 ${PAPERS[style]} ${BORDERS[border]}`}
+          className={`relative w-full max-w-[360px] aspect-[3/4] shadow-2xl transition-all duration-500 overflow-hidden ${PAPERS[style]} ${BORDERS[border]}`}
           style={{ backgroundColor: style === 'custom' ? backgroundColor : undefined }}
         >
           {elements.map((el) => (
@@ -189,7 +206,8 @@ export default function TitanStudioCanvas() {
                 touchAction: 'auto',
                 boxShadow: el.shadow,
                 filter: el.glow,
-                userSelect: el.type === 'text' ? 'text' : 'none'
+                userSelect: el.type === 'text' ? 'text' : 'none',
+                mixBlendMode: el.blendMode
               }}
             >
               {el.type === 'text' ? (
@@ -206,13 +224,13 @@ export default function TitanStudioCanvas() {
                     color: el.color, 
                     backgroundColor: el.bgColor,
                     outline: 'none',
-                    fontWeight: el.bold ? '900' : 'normal',
+                    fontWeight: el.bold ? 'bold' : 'normal',
                     fontStyle: el.italic ? 'italic' : 'normal',
                     textDecoration: `${el.underline ? 'underline' : ''} ${el.strikethrough ? 'line-through' : ''}`,
                     textAlign: el.align,
-                    minWidth: '60px',
-                    minHeight: '40px',
-                    padding: '10px 14px',
+                    minWidth: '40px',
+                    minHeight: '32px',
+                    padding: '8px',
                     cursor: 'text',
                     userSelect: 'text',
                     WebkitUserSelect: 'text',
@@ -222,14 +240,14 @@ export default function TitanStudioCanvas() {
                     letterSpacing: `${el.letterSpacing}px`,
                     lineHeight: el.lineHeight
                   }}
-                  className="inline-block rounded-xl transition-all duration-200 focus:ring-2 focus:ring-purple-400/60 focus:bg-white/5"
+                  className="inline-block bg-transparent border border-transparent focus:border-orange-500/40 rounded focus:outline-none"
                 >
                   {el.content}
                 </div>
               ) : el.type === 'emoji' ? (
-                <div style={{ fontSize: el.size, color: el.color }} className="p-3 select-none leading-none drop-shadow-2xl text-center">{el.content}</div>
+                <div style={{ fontSize: el.size }} className="p-2 select-none leading-none drop-shadow-md text-center">{el.content}</div>
               ) : el.type === 'shape' ? (
-                <svg width={el.width} height={el.height} viewBox="0 0 100 100" style={{ fill: el.fill, opacity: el.opacity }}>
+                <svg width={el.width} height={el.height} viewBox="0 0 100 100" style={{ fill: el.fill }}>
                   {SHAPES[el.content]({})}
                 </svg>
               ) : (
@@ -238,10 +256,9 @@ export default function TitanStudioCanvas() {
                   style={{ 
                     width: el.width, 
                     clipPath: getMask(el.mask),
-                    filter: el.filter || 'none',
-                    opacity: el.opacity
+                    filter: el.filter || 'none'
                   }} 
-                  className="block pointer-events-none select-none rounded-xl" 
+                  className="block pointer-events-none select-none" 
                 />
               )}
             </div>
@@ -259,100 +276,105 @@ export default function TitanStudioCanvas() {
                 target.style.transform = transform;
                 updateEl(selectedId, { transform });
               }}
-              onScale={({ target, transform }) => {
+              onScale={({ target, transform, drag }) => {
                 target.style.transform = transform;
+                if (selectedEl?.type === 'image') updateEl(selectedId, { width: drag.beforeTranslate[0] });
+                if (selectedEl?.type === 'shape') updateEl(selectedId, { width: drag.beforeTranslate[0], height: drag.beforeTranslate[1] });
                 updateEl(selectedId, { transform });
               }}
               onRotate={({ target, transform }) => {
                 target.style.transform = transform;
                 updateEl(selectedId, { transform });
               }}
-              renderDirections={["nw", "n", "ne", "w", "e", "sw", "s", "se"]}
+              renderDirections={["nw", "ne", "sw", "se"]}
               origin={false}
-              lineColor="#c084fc"
+              lineColor="#f97316"
               controlColor="#ffffff"
-              controlBorderColor="#a855f7"
             />
           )}
         </div>
 
         {selectedId && (
-          <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute right-5 top-1/2 -translate-y-1/2 flex flex-col gap-3.5 z-[110]">
-            <button onClick={() => deleteEl(selectedId)} className="p-3.5 bg-gradient-to-br from-red-600 to-rose-700 rounded-2xl shadow-2xl text-white active:scale-90 transition"><Trash2 size={22}/></button>
-            <button onClick={() => duplicateEl(selectedId)} className="p-3.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-2xl text-white active:scale-90 transition"><Copy size={22}/></button>
-            <button onClick={() => updateEl(selectedId, { flipX: !selectedEl.flipX })} className="p-3.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-2xl text-white active:scale-90 transition"><FlipHorizontal size={22}/></button>
-            <button onClick={() => updateEl(selectedId, { flipY: !selectedEl.flipY })} className="p-3.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-2xl text-white active:scale-90 transition"><FlipVertical size={22}/></button>
+          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[110]">
+            <button onClick={() => deleteEl(selectedId)} className="p-3 bg-red-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
+              <Trash2 size={20}/>
+            </button>
+            <button onClick={() => updateEl(selectedId, { flipX: !selectedEl.flipX })} className="p-3 bg-blue-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
+              <FlipHorizontal size={20}/>
+            </button>
+            <button onClick={() => updateEl(selectedId, { flipY: !selectedEl.flipY })} className="p-3 bg-blue-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
+              <FlipVertical size={20}/>
+            </button>
+            <button onClick={() => cropEl(selectedId)} className="p-3 bg-green-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
+              <Crop size={20}/>
+            </button>
           </motion.div>
         )}
       </main>
 
-      <div className="bg-gradient-to-t from-black/95 to-transparent border-t border-purple-500/20 pb-5 backdrop-blur-2xl">
+      <div className="bg-black/95 border-t border-white/5 pb-4 backdrop-blur-xl">
         {selectedId && (
-          <div className="px-5 py-4 flex gap-3 overflow-x-auto items-center bg-black/40 border-b border-purple-500/10 no-scrollbar">
+          <div className="px-6 py-4 flex gap-4 overflow-x-auto items-center bg-white/5 border-b border-white/5 no-scrollbar">
             {selectedEl?.type === 'text' && (
               <>
-                <button onClick={() => updateEl(selectedId, { bold: !selectedEl.bold })} className={`p-2.5 ${selectedEl.bold ? 'bg-purple-600' : 'bg-white/10'} rounded-xl`}><Bold size={18}/></button>
-                <button onClick={() => updateEl(selectedId, { italic: !selectedEl.italic })} className={`p-2.5 ${selectedEl.italic ? 'bg-purple-600' : 'bg-white/10'} rounded-xl`}><Italic size={18}/></button>
-                <button onClick={() => updateEl(selectedId, { underline: !selectedEl.underline })} className={`p-2.5 ${selectedEl.underline ? 'bg-purple-600' : 'bg-white/10'} rounded-xl`}><Underline size={18}/></button>
-                <button onClick={() => updateEl(selectedId, { strikethrough: !selectedEl.strikethrough })} className={`p-2.5 ${selectedEl.strikethrough ? 'bg-purple-600' : 'bg-white/10'} rounded-xl`}><span className="line-through">S</span></button>
-                <button onClick={() => updateEl(selectedId, { align: 'left' })} className={`p-2.5 ${selectedEl.align === 'left' ? 'bg-purple-600' : 'bg-white/10'} rounded-xl`}><AlignLeft size={18}/></button>
-                <button onClick={() => updateEl(selectedId, { align: 'center' })} className={`p-2.5 ${selectedEl.align === 'center' ? 'bg-purple-600' : 'bg-white/10'} rounded-xl`}><AlignCenter size={18}/></button>
-                <button onClick={() => updateEl(selectedId, { align: 'right' })} className={`p-2.5 ${selectedEl.align === 'right' ? 'bg-purple-600' : 'bg-white/10'} rounded-xl`}><AlignRight size={18}/></button>
+                <button onClick={() => updateEl(selectedId, { bold: !selectedEl.bold })} className={`p-2 ${selectedEl.bold ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Bold size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { italic: !selectedEl.italic })} className={`p-2 ${selectedEl.italic ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Italic size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { underline: !selectedEl.underline })} className={`p-2 ${selectedEl.underline ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><Underline size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { align: 'left' })} className={`p-2 ${selectedEl.align === 'left' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignLeft size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { align: 'center' })} className={`p-2 ${selectedEl.align === 'center' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignCenter size={16}/></button>
+                <button onClick={() => updateEl(selectedId, { align: 'right' })} className={`p-2 ${selectedEl.align === 'right' ? 'bg-orange-600' : 'bg-white/10'} rounded-lg`}><AlignRight size={16}/></button>
+                <input type="range" min="0" max="10" step="0.5" value={selectedEl.lineHeight} onChange={(e) => updateEl(selectedId, { lineHeight: parseFloat(e.target.value) })} className="w-24" />
+                <input type="range" min="-5" max="5" step="0.1" value={selectedEl.letterSpacing} onChange={(e) => updateEl(selectedId, { letterSpacing: parseFloat(e.target.value) })} className="w-24" />
               </>
             )}
-
-            <div className="relative">
-              <button onClick={() => setColorPickerOpen(!colorPickerOpen)} className="p-2.5 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl shadow-lg">
-                <Droplet size={18} />
-              </button>
-              {colorPickerOpen && (
-                <div className="absolute bottom-full left-0 mb-3 bg-black/90 border border-purple-500/30 rounded-2xl p-4 shadow-2xl z-[200] flex flex-col gap-3 min-w-[220px]">
-                  <div className="flex gap-3">
-                    <input type="color" value={selectedEl?.color || '#ffffff'} onChange={(e) => updateEl(selectedId, { color: e.target.value })} className="w-12 h-12 rounded-xl cursor-pointer" />
-                    <input type="color" value={selectedEl?.bgColor || 'transparent'} onChange={(e) => updateEl(selectedId, { bgColor: e.target.value })} className="w-12 h-12 rounded-xl cursor-pointer" />
-                  </div>
-                  <div className="grid grid-cols-6 gap-2">
-                    {['#ffffff','#ff3366','#00d4ff','#ffdd00','#00ff9d','#c084fc','#ff6bcb','#8b5cf6','#10b981','#ef4444','#f59e0b','#6366f1'].map(c => (
-                      <button key={c} onClick={() => updateEl(selectedId, { color: c })} className="w-8 h-8 rounded-full shadow-md" style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <input type="range" min="8" max="120" step="1" value={selectedEl?.size ?? 42} onChange={(e) => updateEl(selectedId, { size: parseInt(e.target.value) })} className="w-28" />
-            <input type="range" min="0.5" max="2" step="0.05" value={selectedEl?.lineHeight ?? 1.2} onChange={(e) => updateEl(selectedId, { lineHeight: parseFloat(e.target.value) })} className="w-20" title="Espaciado líneas" />
-            <input type="range" min="-2" max="8" step="0.1" value={selectedEl?.letterSpacing ?? 0} onChange={(e) => updateEl(selectedId, { letterSpacing: parseFloat(e.target.value) })} className="w-20" title="Espaciado letras" />
-
-            <select onChange={(e) => updateEl(selectedId, { shadow: e.target.value })} className="bg-white/10 text-xs font-black rounded-xl px-3 py-2 outline-none min-w-[110px]">
-              <option value="none">Sombra</option>
-              <option value="0 4px 12px rgba(0,0,0,0.4)">Suave</option>
-              <option value="0 8px 24px rgba(0,0,0,0.5)">Media</option>
-              <option value="0 12px 40px rgba(139,92,246,0.6)">Neón</option>
-            </select>
-
-            <select onChange={(e) => updateEl(selectedId, { glow: e.target.value })} className="bg-white/10 text-xs font-black rounded-xl px-3 py-2 outline-none min-w-[110px]">
-              <option value="none">Brillo</option>
-              <option value="drop-shadow(0 0 8px #ff3366)">Rosa</option>
-              <option value="drop-shadow(0 0 12px #00d4ff)">Cian</option>
-              <option value="drop-shadow(0 0 16px #c084fc)">Púrpura</option>
-              <option value="drop-shadow(0 0 20px #00ff9d)">Verde</option>
-            </select>
-
-            <select value={selectedEl?.font || FONTS[0].family} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-xs font-black rounded-xl px-3 py-2 outline-none min-w-[140px]">
+            <input type="color" value={selectedEl.color || selectedEl.fill} onChange={(e) => updateEl(selectedId, selectedEl.type === 'shape' ? { fill: e.target.value } : { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer scale-125" />
+            <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none" style={{ display: selectedEl.type === 'text' ? 'block' : 'none' }}>
               {FONTS.map(f => <option key={f.id} value={f.family} className="bg-black text-white">{f.name}</option>)}
+            </select>
+            <input type="range" min="0.1" max="1" step="0.01" value={selectedEl.opacity} onChange={(e) => updateEl(selectedId, { opacity: parseFloat(e.target.value) })} className="w-24" />
+            <select onChange={(e) => updateEl(selectedId, { shadow: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+              <option value="none">Sin Sombra</option>
+              <option value="0 4px 6px rgba(0,0,0,0.1)">Suave</option>
+              <option value="0 10px 15px rgba(0,0,0,0.2)">Media</option>
+              <option value="0 20px 25px rgba(0,0,0,0.3)">Fuerte</option>
+            </select>
+            { (selectedEl.type === 'image' || selectedEl.type === 'shape') && (
+              <select value={selectedEl.mask} onChange={(e) => updateEl(selectedId, { mask: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+                <option value="none">Sin Máscara</option>
+                <option value="circle">Círculo</option>
+                <option value="star">Estrella</option>
+              </select>
+            )}
+            { selectedEl.type === 'image' && (
+              <select onChange={(e) => updateEl(selectedId, { filter: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+                <option value="none">Sin Filtro</option>
+                <option value="grayscale(100%)">Blanco y Negro</option>
+                <option value="sepia(100%)">Sepia</option>
+                <option value="brightness(150%)">Brillante</option>
+                <option value="contrast(200%)">Contraste Alto</option>
+                <option value="hue-rotate(90deg)">Tono Verde</option>
+                <option value="invert(100%)">Invertido</option>
+                <option value="saturate(200%)">Saturado</option>
+                <option value="blur(5px)">Desenfocado</option>
+              </select>
+            )}
+            <select onChange={(e) => applyBlend(e.target.value)} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
+              <option value="normal">Modo Normal</option>
+              <option value="multiply">Multiplicar</option>
+              <option value="screen">Pantalla</option>
+              <option value="overlay">Superponer</option>
+              <option value="darken">Oscurecer</option>
+              <option value="lighten">Aclarar</option>
             </select>
           </div>
         )}
-
-        <nav className="p-5 grid grid-cols-7 gap-3">
-          <ToolBtn icon={<Palette/>} label="FONDO" onClick={() => setActiveSheet('papers')} />
-          <ToolBtn icon={<Layers/>} label="MARCO" onClick={() => setActiveSheet('borders')} />
-          <ToolBtn icon={<Type/>} label="TEXTO" onClick={() => addElement('text')} />
-          <ToolBtn icon={<Smile/>} label="EMOJI" onClick={() => setActiveSheet('emojis')} />
-          <ToolBtn icon={<ImageIcon/>} label="FOTO" onClick={() => fileRef.current.click()} />
-          <ToolBtn icon={<StarIcon/>} label="FORMA" onClick={() => setActiveSheet('shapes')} />
-          <ToolBtn icon={<Magic/>} label="EFECTOS" onClick={() => setActiveSheet('effects')} />
+        <nav className="p-6 grid grid-cols-6 gap-2">
+          <ToolBtn icon={<Palette/>} label="Fondo" onClick={() => setActiveSheet('papers')} />
+          <ToolBtn icon={<Layers/>} label="Marco" onClick={() => setActiveSheet('borders')} />
+          <ToolBtn icon={<Type/>} label="Texto" onClick={() => addElement('text')} />
+          <ToolBtn icon={<Sparkles/>} label="Sticker" onClick={() => setActiveSheet('emojis')} />
+          <ToolBtn icon={<ImageIcon/>} label="Foto" onClick={() => fileRef.current.click()} />
+          <ToolBtn icon={<Square/>} label="Forma" onClick={() => setActiveSheet('shapes')} />
         </nav>
       </div>
 
@@ -368,18 +390,18 @@ export default function TitanStudioCanvas() {
       <AnimatePresence>
         {activeSheet && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveSheet(null)} className="fixed inset-0 bg-black/85 z-[120] backdrop-blur-md"/>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed bottom-0 left-0 w-full bg-gradient-to-t from-[#0f001a] to-[#1a0033] rounded-t-3xl p-8 z-[130] border-t border-purple-500/30 max-h-[75vh] overflow-y-auto shadow-2xl">
-              <div className="w-12 h-1.5 bg-purple-500/40 rounded-full mx-auto mb-8"/>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveSheet(null)} className="fixed inset-0 bg-black/80 z-[120] backdrop-blur-sm"/>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed bottom-0 left-0 w-full bg-[#0a0a0a] rounded-t-[40px] p-8 z-[130] border-t border-white/10 max-h-[70vh] overflow-y-auto shadow-2xl">
+              <div className="w-10 h-1.5 bg-white/20 rounded-full mx-auto mb-8"/>
 
               {activeSheet === 'emojis' && (
-                <div className="space-y-12 pb-16">
+                <div className="space-y-10 pb-12">
                   {EMOJI_LIBRARY.map((cat) => (
                     <div key={cat.category}>
-                      <h4 className="text-xs font-black text-purple-300 uppercase mb-6 tracking-widest">{cat.category}</h4>
-                      <div className="grid grid-cols-7 gap-5">
+                      <h4 className="text-[9px] font-black text-gray-500 uppercase mb-5 tracking-[0.3em]">{cat.category}</h4>
+                      <div className="grid grid-cols-6 gap-4">
                         {cat.items.map((emoji, i) => (
-                          <button key={i} onClick={() => addElement('emoji', emoji, { color: '#ffffff' })} className="text-5xl aspect-square flex items-center justify-center active:scale-125 transition-transform hover:drop-shadow-2xl">{emoji}</button>
+                          <button key={i} onClick={() => addElement('emoji', emoji)} className="text-4xl aspect-square flex items-center justify-center active:scale-150 transition-all">{emoji}</button>
                         ))}
                       </div>
                     </div>
@@ -388,43 +410,33 @@ export default function TitanStudioCanvas() {
               )}
 
               {activeSheet === 'papers' && (
-                <div className="grid grid-cols-3 gap-5 pb-16">
+                <div className="grid grid-cols-3 gap-4 pb-12">
                   {Object.keys(PAPERS).map(p => (
-                    <div key={p} onClick={() => { setStyle(p); setActiveSheet(null); }} className={`aspect-square rounded-3xl ${PAPERS[p]} border-4 transition-all duration-300 ${style === p ? 'border-purple-500 scale-105 shadow-2xl shadow-purple-500/40' : 'border-white/10 opacity-60'}`} />
+                    <div key={p} onClick={() => { setStyle(p); setActiveSheet(null); }} className={`aspect-square rounded-2xl ${PAPERS[p]} border-2 transition-all ${style === p ? 'border-orange-500 scale-95' : 'border-white/5 opacity-40'}`} />
                   ))}
-                  <div onClick={() => { setStyle('custom'); setActiveSheet(null); }} className={`aspect-square rounded-3xl border-4 transition-all ${style === 'custom' ? 'border-purple-500 scale-105 shadow-2xl shadow-purple-500/40' : 'border-white/10 opacity-60'}`}>
-                    <input type="color" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} className="w-full h-full opacity-0 cursor-pointer rounded-3xl" />
+                  <div onClick={() => { setStyle('custom'); setActiveSheet(null); }} className={`aspect-square rounded-2xl bg-gray-500 border-2 transition-all ${style === 'custom' ? 'border-orange-500 scale-95' : 'border-white/5 opacity-40'}`}>
+                    <input type="color" value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)} className="w-full h-full opacity-0 cursor-pointer" />
                   </div>
                 </div>
               )}
 
               {activeSheet === 'borders' && (
-                <div className="grid grid-cols-3 gap-4 pb-16">
+                <div className="grid grid-cols-2 gap-3 pb-12">
                   {Object.keys(BORDERS).map(b => (
-                    <button key={b} onClick={() => { setBorder(b); setActiveSheet(null); }} className={`py-5 px-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${border === b ? 'bg-gradient-to-br from-purple-600 to-pink-600 scale-105 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>{b}</button>
+                    <button key={b} onClick={() => { setBorder(b); setActiveSheet(null); }} className={`py-4 rounded-xl text-[9px] font-black uppercase tracking-widest ${border === b ? 'bg-orange-600 text-white' : 'bg-white/5 text-gray-500'}`}>{b}</button>
                   ))}
                 </div>
               )}
 
               {activeSheet === 'shapes' && (
-                <div className="grid grid-cols-5 gap-5 pb-16">
+                <div className="grid grid-cols-4 gap-4 pb-12">
                   {Object.keys(SHAPES).map(s => (
-                    <button key={s} onClick={() => { addElement('shape', s); setActiveSheet(null); }} className="aspect-square flex items-center justify-center bg-white/5 rounded-3xl hover:bg-purple-600/30 transition-all active:scale-95">
-                      <svg width="60" height="60" viewBox="0 0 100 100" style={{ fill: '#ffffff' }}>
+                    <button key={s} onClick={() => { addElement('shape', s); setActiveSheet(null); }} className="aspect-square flex items-center justify-center bg-white/5 rounded-2xl">
+                      <svg width="50" height="50" viewBox="0 0 100 100" style={{ fill: '#ffffff' }}>
                         {SHAPES[s]({})}
                       </svg>
                     </button>
                   ))}
-                </div>
-              )}
-
-              {activeSheet === 'effects' && (
-                <div className="space-y-8 pb-16">
-                  <div className="grid grid-cols-3 gap-4">
-                    <button onClick={() => addElement('emoji', '✨', { size: 120, color: '#ffd700' })} className="p-6 bg-gradient-to-br from-yellow-500/20 to-amber-500/10 rounded-3xl text-6xl hover:scale-110 transition">✨</button>
-                    <button onClick={() => addElement('emoji', '💥', { size: 110, color: '#ff4500' })} className="p-6 bg-gradient-to-br from-red-500/20 to-orange-500/10 rounded-3xl text-6xl hover:scale-110 transition">💥</button>
-                    <button onClick={() => addElement('emoji', '🌈', { size: 100, color: '#ffffff' })} className="p-6 bg-gradient-to-br from-pink-500/20 to-cyan-500/10 rounded-3xl text-6xl hover:scale-110 transition">🌈</button>
-                  </div>
                 </div>
               )}
             </motion.div>
@@ -434,30 +446,28 @@ export default function TitanStudioCanvas() {
 
       <AnimatePresence>
         {preview && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/95 z-[200] flex flex-col items-center justify-center p-6">
-            <div className="w-full max-w-md flex justify-between items-center mb-8">
-              <button onClick={() => setPreview(null)} className="p-4 bg-white/10 rounded-full"><X size={24}/></button>
-              <h2 className="font-black text-2xl uppercase tracking-widest bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">PREVIEW</h2>
-              <div className="w-12"/>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black z-[200] flex flex-col items-center p-6 overflow-y-auto">
+            <header className="w-full flex justify-between items-center mb-8">
+              <button onClick={() => setPreview(null)} className="p-3 bg-white/5 rounded-full"><X/></button>
+              <h2 className="font-black tracking-[0.3em] text-[9px] uppercase italic text-orange-500 text-center flex-1">Titan Export</h2>
+              <div className="w-10"/>
+            </header>
+            <div className="w-full max-w-[320px] aspect-[3/4] bg-[#111] rounded-[30px] overflow-hidden shadow-2xl mb-12">
+              <img src={preview} className="w-full h-full object-contain" />
             </div>
-            <div className="w-full max-w-[360px] aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl border-4 border-purple-500/30 mb-10">
-              <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-            </div>
-            <button onClick={() => { const a = document.createElement('a'); a.download = `Titan_${Date.now()}.png`; a.href = preview; a.click(); }} className="w-full max-w-md py-6 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 rounded-3xl font-black text-lg uppercase tracking-widest shadow-2xl shadow-purple-700/50 active:scale-95 transition">
-              GUARDAR EN GALERÍA
+            <button onClick={() => { const a = document.createElement('a'); a.download = `Titan_${Date.now()}.png`; a.href = preview; a.click(); }} className="w-full max-w-xs py-5 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
+              Guardar en Galería
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <motion.div initial={{ x: '100%' }} animate={{ x: selectedId ? 0 : '100%' }} className="absolute top-24 right-0 w-64 bg-black/90 backdrop-blur-xl p-5 rounded-l-3xl shadow-2xl z-[120] max-h-[60vh] overflow-y-auto border-l border-purple-500/30">
-        <h3 className="text-sm font-black mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">CAPAS</h3>
+      <motion.div initial={{ x: '100%' }} animate={{ x: selectedId ? 0 : '100%' }} className="absolute top-20 right-0 w-48 bg-black/90 p-4 rounded-l-2xl shadow-2xl z-[120] max-h-[50vh] overflow-y-auto">
+        <h3 className="text-xs font-bold mb-2">Capas</h3>
         {elements.slice().sort((a, b) => b.zIndex - a.zIndex).map((el, idx) => (
-          <div key={el.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', idx)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => reorderElements(parseInt(e.dataTransfer.getData('text/plain')), idx)} className={`flex items-center gap-3 p-3 rounded-2xl mb-2 cursor-move transition-all ${el.id === selectedId ? 'bg-purple-600/40 border-purple-400/50 border' : 'bg-white/5 hover:bg-white/10'}`}>
-            <Layers size={16} className="text-purple-300" />
-            <span className="text-sm font-medium truncate flex-1">
-              {el.type === 'text' ? 'Texto' : el.type === 'image' ? 'Imagen' : el.type === 'shape' ? 'Forma' : 'Emoji'}
-            </span>
+          <div key={el.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', idx)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => reorderElements(parseInt(e.dataTransfer.getData('text/plain')), idx)} className={`flex items-center gap-2 p-2 rounded-lg ${el.id === selectedId ? 'bg-orange-600' : 'bg-white/5'} mb-1 cursor-move`}>
+            <Layers size={12} />
+            <span className="text-xs">{el.type.charAt(0).toUpperCase() + el.type.slice(1)} {el.content.slice(0, 10)}</span>
           </div>
         ))}
       </motion.div>
@@ -467,11 +477,11 @@ export default function TitanStudioCanvas() {
 
 function ToolBtn({ icon, label, onClick }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-2 active:scale-90 transition-all group">
-      <div className="w-16 h-16 bg-gradient-to-br from-purple-900/40 to-pink-900/30 rounded-3xl flex items-center justify-center text-purple-300 group-hover:bg-gradient-to-br group-hover:from-purple-600 group-hover:to-pink-600 group-hover:text-white transition-all shadow-lg">
-        {React.cloneElement(icon, { size: 26 })}
+    <button onClick={onClick} className="flex flex-col items-center gap-2.5 active:scale-90 transition-all group">
+      <div className="w-14 h-14 bg-white/[0.03] rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-orange-600 group-hover:text-white transition-all shadow-sm">
+        {React.cloneElement(icon, { size: 22 })}
       </div>
-      <span className="text-[10px] font-black uppercase tracking-widest text-purple-300/80 group-hover:text-purple-200">{label}</span>
+      <span className="text-[7px] font-black uppercase tracking-widest text-gray-600">{label}</span>
     </button>
   );
 }
