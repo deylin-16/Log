@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Moveable from "react-moveable";
 import { 
   Plus, Type, Image as ImageIcon, X, Trash2, 
-  RotateCcw, Download, Palette, Layers, 
-  Wand2, Sparkles, ArrowUp, ArrowDown
+  RotateCcw, Palette, Layers, Wand2, Sparkles 
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
@@ -24,6 +23,14 @@ export default function TitanStudioCanvas() {
   
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
+
+  const selectElement = (id) => {
+    setSelectedId(id);
+    setElements(prev => {
+      const maxZ = Math.max(...prev.map(el => el.zIndex || 0), 0);
+      return prev.map(el => el.id === id ? { ...el, zIndex: maxZ + 1 } : el);
+    });
+  };
 
   const addElement = (type, content = '', extra = {}) => {
     const newEl = {
@@ -53,17 +60,6 @@ export default function TitanStudioCanvas() {
     setSelectedId(null);
   };
 
-  const moveLayer = (id, direction) => {
-    const idx = elements.findIndex(el => el.id === id);
-    if (idx === -1) return;
-    const newElements = [...elements];
-    const targetIdx = direction === 'up' ? idx + 1 : idx - 1;
-    if (targetIdx >= 0 && targetIdx < newElements.length) {
-      [newElements[idx], newElements[targetIdx]] = [newElements[targetIdx], newElements[idx]];
-      setElements(newElements);
-    }
-  };
-
   const selectedEl = elements.find(el => el.id === selectedId);
 
   return (
@@ -81,10 +77,10 @@ export default function TitanStudioCanvas() {
           <button onClick={async () => {
             setSelectedId(null);
             setTimeout(async () => {
-              const dataUrl = await toPng(canvasRef.current, { pixelRatio: 3, skipFonts: false });
+              const dataUrl = await toPng(canvasRef.current, { pixelRatio: 3 });
               setPreview(dataUrl);
             }, 300);
-          }} className="bg-white text-black px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-widest shadow-xl">Finalizar</button>
+          }} className="bg-white text-black px-4 py-1.5 rounded-lg font-black text-[10px] uppercase">Finalizar</button>
         </div>
       </header>
 
@@ -92,14 +88,14 @@ export default function TitanStudioCanvas() {
         <div 
           ref={canvasRef}
           onClick={() => setSelectedId(null)}
-          className={`relative w-full max-w-[360px] aspect-[3/4] shadow-[0_30px_60px_rgba(0,0,0,0.5)] transition-all duration-500 overflow-hidden ${PAPERS[style]} ${BORDERS[border]}`}
+          className={`relative w-full max-w-[360px] aspect-[3/4] shadow-2xl transition-all duration-500 overflow-hidden ${PAPERS[style]} ${BORDERS[border]}`}
         >
           {elements.map((el) => (
             <div
               key={el.id}
               id={`el-${el.id}`}
-              onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); }}
-              className={`absolute inline-block pointer-events-auto origin-center ${selectedId === el.id ? 'z-50' : ''}`}
+              onClick={(e) => { e.stopPropagation(); selectElement(el.id); }}
+              className={`absolute inline-block pointer-events-auto`}
               style={{ 
                 transform: el.transform, 
                 zIndex: el.zIndex,
@@ -118,7 +114,7 @@ export default function TitanStudioCanvas() {
                   {el.content}
                 </div>
               ) : el.type === 'emoji' ? (
-                <div style={{ fontSize: el.size }} className="p-2 select-none leading-none drop-shadow-md">{el.content}</div>
+                <div style={{ fontSize: el.size }} className="p-2 select-none leading-none drop-shadow-md text-center">{el.content}</div>
               ) : (
                 <img src={el.content} style={{ width: el.width, clipPath: getMask(el.mask) }} className="block pointer-events-none select-none" />
               )}
@@ -151,29 +147,22 @@ export default function TitanStudioCanvas() {
               controlColor="#ffffff"
             />
           )}
-
-          {elements.length === 0 && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-black/5 pointer-events-none">
-              <Plus size={80} strokeWidth={1} />
-              <p className="font-black text-[8px] uppercase tracking-[0.4em]">Tap to start</p>
-            </div>
-          )}
         </div>
 
         {selectedId && (
-          <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[110] bg-black/60 p-2 rounded-2xl backdrop-blur-md border border-white/10">
-            <button onClick={() => moveLayer(selectedId, 'up')} className="p-2 hover:bg-white/10 rounded-lg"><ArrowUp size={18}/></button>
-            <button onClick={() => moveLayer(selectedId, 'down')} className="p-2 hover:bg-white/10 rounded-lg"><ArrowDown size={18}/></button>
-            <button onClick={() => deleteEl(selectedId)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg"><Trash2 size={18}/></button>
+          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-[110]">
+            <button onClick={() => deleteEl(selectedId)} className="p-3 bg-red-600 rounded-full shadow-2xl text-white active:scale-90 transition-transform">
+              <Trash2 size={20}/>
+            </button>
           </motion.div>
         )}
       </main>
 
-      <div className="bg-black border-t border-white/5 pb-4">
+      <div className="bg-black/95 border-t border-white/5 pb-4 backdrop-blur-xl">
         {selectedId && selectedEl?.type === 'text' && (
           <div className="px-6 py-4 flex gap-6 overflow-x-auto items-center bg-white/5 border-b border-white/5 no-scrollbar">
-             <input type="color" value={selectedEl.color} onChange={(e) => updateEl(selectedId, { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer" />
-             <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-transparent text-[10px] uppercase font-black border border-white/10 rounded-lg px-3 py-1.5 outline-none">
+             <input type="color" value={selectedEl.color} onChange={(e) => updateEl(selectedId, { color: e.target.value })} className="w-8 h-8 rounded-full bg-transparent border-none cursor-pointer scale-125" />
+             <select value={selectedEl.font} onChange={(e) => updateEl(selectedId, { font: e.target.value })} className="bg-white/10 text-[10px] uppercase font-black border-none rounded-lg px-3 py-2 outline-none">
                 {FONTS.map(f => <option key={f.id} value={f.family} className="bg-black text-white">{f.name}</option>)}
              </select>
           </div>
@@ -200,9 +189,24 @@ export default function TitanStudioCanvas() {
         {activeSheet && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveSheet(null)} className="fixed inset-0 bg-black/80 z-[120] backdrop-blur-sm"/>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed bottom-0 left-0 w-full bg-[#0a0a0a] rounded-t-[40px] p-8 z-[130] border-t border-white/10 max-h-[70vh] overflow-y-auto">
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-8"/>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed bottom-0 left-0 w-full bg-[#0a0a0a] rounded-t-[40px] p-8 z-[130] border-t border-white/10 max-h-[70vh] overflow-y-auto shadow-2xl">
+              <div className="w-10 h-1.5 bg-white/20 rounded-full mx-auto mb-8"/>
               
+              {activeSheet === 'emojis' && (
+                <div className="space-y-10 pb-12">
+                  {EMOJI_LIBRARY.map((cat) => (
+                    <div key={cat.category}>
+                      <h4 className="text-[9px] font-black text-gray-500 uppercase mb-5 tracking-[0.3em]">{cat.category}</h4>
+                      <div className="grid grid-cols-6 gap-4">
+                        {cat.items.map((emoji, i) => (
+                          <button key={i} onClick={() => addElement('emoji', emoji)} className="text-4xl aspect-square flex items-center justify-center active:scale-150 transition-all">{emoji}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {activeSheet === 'papers' && (
                 <div className="grid grid-cols-3 gap-4 pb-12">
                   {Object.keys(PAPERS).map(p => (
@@ -218,21 +222,6 @@ export default function TitanStudioCanvas() {
                   ))}
                 </div>
               )}
-
-              {activeSheet === 'emojis' && (
-                <div className="space-y-8 pb-12">
-                  {EMOJI_LIBRARY.map((cat) => (
-                    <div key={cat.category}>
-                      <h4 className="text-[8px] font-black text-gray-600 uppercase mb-4 tracking-[0.3em]">{cat.category}</h4>
-                      <div className="grid grid-cols-6 gap-3">
-                        {cat.items.map((emoji, i) => (
-                          <button key={i} onClick={() => addElement('emoji', emoji)} className="text-4xl aspect-square flex items-center justify-center active:scale-125 transition-all">{emoji}</button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </motion.div>
           </>
         )}
@@ -243,14 +232,14 @@ export default function TitanStudioCanvas() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black z-[200] flex flex-col items-center p-6 overflow-y-auto">
             <header className="w-full flex justify-between items-center mb-8">
               <button onClick={() => setPreview(null)} className="p-3 bg-white/5 rounded-full"><X/></button>
-              <h2 className="font-black tracking-[0.3em] text-[9px] uppercase italic text-orange-500 text-center flex-1">Titan Engine Export</h2>
+              <h2 className="font-black tracking-[0.3em] text-[9px] uppercase italic text-orange-500 text-center flex-1">Titan Export</h2>
               <div className="w-10"/>
             </header>
             <div className="w-full max-w-[320px] aspect-[3/4] bg-[#111] rounded-[30px] overflow-hidden shadow-2xl mb-12">
               <img src={preview} className="w-full h-full object-contain" />
             </div>
-            <button onClick={() => { const a = document.createElement('a'); a.download = `TitanStudio_${Date.now()}.png`; a.href = preview; a.click(); }} className="w-full max-w-xs py-5 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
-              Guardar Galería
+            <button onClick={() => { const a = document.createElement('a'); a.download = `Titan_${Date.now()}.png`; a.href = preview; a.click(); }} className="w-full max-w-xs py-5 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all">
+              Guardar en Galería
             </button>
           </motion.div>
         )}
@@ -262,10 +251,10 @@ export default function TitanStudioCanvas() {
 function ToolBtn({ icon, label, onClick }) {
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-2.5 active:scale-90 transition-all group">
-      <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-orange-600 group-hover:text-white transition-all">
-        {React.cloneElement(icon, { size: 20 })}
+      <div className="w-14 h-14 bg-white/[0.03] rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-orange-600 group-hover:text-white transition-all shadow-sm">
+        {React.cloneElement(icon, { size: 22 })}
       </div>
-      <span className="text-[7px] font-black uppercase text-gray-600">{label}</span>
+      <span className="text-[7px] font-black uppercase tracking-widest text-gray-600">{label}</span>
     </button>
   );
 }
